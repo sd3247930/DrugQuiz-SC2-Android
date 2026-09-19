@@ -24,6 +24,7 @@ android/captures/
 
 # APK 产物
 *.apk
+/apk/
 
 # Python
 __pycache__/
