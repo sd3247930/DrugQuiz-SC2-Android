@@ -127,7 +127,7 @@ async function renderQuestion() {
   box.className = "result hidden";
   hide($("explainBox"));
   $("explainText").textContent = "";
-  $("lawText").textContent = "";
+  if ($("explainHint")) $("explainHint").textContent = "";
 
   show($("submitBtn"));
   hide($("nextBtn"));
@@ -199,11 +199,10 @@ function markAnswer(answerText) {
   });
 }
 
-function showExplanation(explanation, law) {
+/** 展示解析：解析区只放解析文字，法条依据改由「查看法条」按钮查看（D1/D2） */
+function showExplanation(explanation) {
   $("explainText").textContent = (explanation && explanation.trim()) ? explanation : "本题暂无解析。";
-  const l = law || {};
-  $("lawTitle").textContent = (l.title && l.title.trim()) ? l.title : "法条依据";
-  $("lawText").textContent = (l.text && l.text.trim()) ? l.text : "本题暂无收录对应法条。";
+  if ($("explainHint")) $("explainHint").textContent = "本题依据的法条可点上方「查看法条」查看。";
   show($("explainBox"));
 }
 

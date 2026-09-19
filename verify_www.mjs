@@ -107,12 +107,14 @@ async function main() {
       result: document.getElementById("resultBox").textContent,
       shown: !document.getElementById("explainBox").classList.contains("hidden"),
       expl: document.getElementById("explainText").textContent.trim().length,
-      law: document.getElementById("lawText").textContent.trim().length
+      hasLawBlock: !!document.getElementById("lawText"),
+      hint: (document.getElementById("explainHint") || {}).textContent || ""
     }));
     check("判分正确", answered.result.indexOf("回答正确") >= 0, answered.result);
-    check("作答后自动展开解析与法条", answered.shown && answered.expl > 20 && answered.law > 20,
-      `解析 ${answered.expl} 字 / 法条 ${answered.law} 字`);
-    await page.screenshot({ path: path.join(SHOT_DIR, "02-安卓版-解析与法条.png") });
+    check("作答后自动展开解析", answered.shown && answered.expl > 20, `解析 ${answered.expl} 字`);
+    check("解析区不再显示法条依据（改由「查看法条」查看）",
+      !answered.hasLawBlock && answered.hint.indexOf("查看法条") >= 0, answered.hint.trim());
+    await page.screenshot({ path: path.join(SHOT_DIR, "02-安卓版-解析.png") });
 
     /* --- 3. 背题模式 + 上一题 --- */
     await page.click("#nextBtn");

@@ -122,6 +122,8 @@ body.theme-dark .stat-section { color: #e6e9ef; }
 .explain-section + .explain-section { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0; }
 .explain-title { font-size: 14px; font-weight: 600; color: #1a5fb4; margin-bottom: 6px; }
 .explain-text { font-size: 15px; line-height: 1.7; color: #333; white-space: pre-wrap; word-break: break-word; }
+.explain-hint { font-size: 13px; color: #8a94a6; margin-top: 10px; }
+body.theme-dark .explain-hint { color: #9aa6b8; }
 
 /* 错题本 */
 .wrong-row { border: 1px solid #e5eaf0; border-radius: 8px; padding: 12px 14px; margin: 10px 0; background: #fcfdff; }
