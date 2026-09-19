@@ -16,11 +16,11 @@
 把「药品管理题库」打包成 **Android 离线 App**；并且从 **v1.1 起，App 的界面与功能与服务端版（Flask）完全对齐**——
 **4 个页面 + 顶部导航 + 选题面板 + 答题卡 + 设置 + 法条浏览**，全部由服务端版模板与脚本生成，两端共用同一份 UI 代码。
 
-**当前状态（v1.1）**：
+**当前状态（v1.2）**：
 
 - 工程、离线数据、生成流程、CI 均已就绪，APK 可通过 GitHub Actions 一键产出；
-- 验收：安卓版网页资源 **32/32** 通过；服务端版 pytest **47/47** + 浏览器 **34/34**；静态版 **55/55**（零倒退）；
-- 已产出 APK：`com.drugquiz.sc2`，versionCode 2 / versionName **1.1**；
+- 验收：安卓版网页资源 **44/44** 通过（含暗色对比度 8 项 + 法条控件 4 项）；服务端版 pytest **47/47** + 浏览器 **45/45**；静态版 **55/55**（零倒退）；
+- 已产出 APK：`com.drugquiz.sc2`，versionCode 3 / versionName **1.2**；
 - 本机沙箱无法运行 Gradle（原因见第 6.3 节），出包走 GitHub Actions 或在普通 Windows/Android Studio 构建。
 
 ---
@@ -67,6 +67,7 @@
 │  ├─ script.js                  #    ← 服务端版 static/script.js（去掉 SW 注册）
 │  ├─ selection.js               #    ← 服务端版 static/selection.js（选题面板）
 │  ├─ law.js                     #    ← 服务端版 static/law.js（法条浏览）
+│  ├─ lawtip.js                  #    ← 服务端版 static/lawtip.js（练习页「查看法条」）
 │  ├─ local-api.js               #    ★ App 专用：本地接口垫片（顶替 Flask 后端）
 │  ├─ page-init.js               #    ★ App 专用：填充服务端渲染值、导航高亮、重置入口
 │  └─ data-offline.js            #    ← generate_offline.py 生成（300 题）
@@ -259,11 +260,37 @@ window.APP_PATHS = { home: "index.html", practice: m => "practice.html?mode=" + 
 - 选项用原生 `radio` / `checkbox`，便于系统无障碍朗读；
 - 多页面结构下，Android 返回键走浏览器历史，回退符合直觉。
 
+### 4.9 练习页「查看法条」（v1.2 新增）
+
+做题前/做题中即可查看**本题**依据的法条原文，实现在**服务端版 `static/lawtip.js`**（两端共用）：
+
+- **取数按题号**：请求 `/api/question/<id>?reveal=1` 取当前题的 `law`。
+  **不用** `/api/law/<标题>`——题库里法条标题只有 1 种、条文有 298 种，按标题取会让 300 题显示同一段条文；
+- **渲染**：一律 `textContent`（项目安全约定，不插入未净化 HTML）；
+- **弹层**：复用选题面板的 `.sheet` 全屏弹层，无需 Popover API，也就没有老版 WebView 的兼容问题；
+- **切题同步**：`script.js` 的 `renderQuestion()` 末尾调用 `window.onQuestionRendered(item)` 钩子，`lawtip.js` 借此重置弹层与按钮；
+- **边界**：该题无收录法条时，按钮置灰为「暂无相关法条」并提示，不打开空弹层。
+
+### 4.10 夜间模式与视觉 token（v1.2）
+
+**夜间模式（O1）**：机制保持 `body.theme-dark` class 切换不变。v1.2 补齐了原先漏覆盖的元素——
+`.progress` / `.summary` / `.stat-label` / `.q-no` / `.mode-label` / `.type-tag` / `.explain-title`
+（补齐前实测对比度仅 2.73:1 与 2.41:1），以及 `.result.ok/bad`、`.option.correct/wrong`、`.badge-*` 的暗色态；
+现在 4 个页面抽样元素在暗色下的文字对比度**全部 ≥ 4.5:1**，并已固化为自动验收项。
+
+> 备注：审核时曾发现《安卓版优化实施方案》把根因写成"CSS 依赖 `@media (prefers-color-scheme)`"，
+> 实测该写法在 `style.css` 中从未出现（0 处），机制一直是 class 切换且可用；真正的问题是覆盖不全。
+
+**视觉 token（O3）**：`style.css` 末尾新增设计 token 层（`:root` 定义颜色/圆角/阴影/间距，
+`body.theme-dark` 只重定义变量），并以追加覆盖的方式精修：背景改为**纯 CSS 渐变 + 细网格纹理**
+（不引入 p5.js 等任何第三方库）、题干卡片化、选项卡片悬浮反馈、导航胶囊、按钮与标签统一走 token。
+既有 30 条 `theme-dark` 规则保持不变，降低回归风险。
+
 ---
 
 ## 5. 验收
 
-### 5.1 App 内网页资源（`node verify_www.mjs`，**32 / 32 通过**）
+### 5.1 App 内网页资源（`node verify_www.mjs`，**44 / 44 通过**）
 
 真实 Edge 无头浏览器、手机尺寸 393×852：
 
@@ -274,6 +301,8 @@ window.APP_PATHS = { home: "index.html", practice: m => "practice.html?mode=" + 
 | 答题卡 | 错题本列表、统计填充、选题面板打开、默认 50 条、题型筛选、关键词筛选、勾选多题、按勾选顺序开始练习、自定义练习题数 |
 | 法条浏览 | 列出法条、展开条文原文、一键练习该法条下的题 |
 | 设置 | 夜间模式保存生效、「重置为内置题库」入口存在、无「重新导入题库」 |
+| 夜间模式（v1.2） | 4 个页面：模式已启用 + 暗色下文字对比度均 ≥ 4.5:1（共 8 项） |
+| 查看法条（v1.2） | 按钮存在、弹出的是**本题**对应法条、弹层可关闭、切题后状态重置（共 4 项） |
 | 通用 | 进度持久化、手机尺寸无横向溢出、无 JS 报错、无控制台错误 |
 
 截图见 `验证截图/01~04`。
@@ -443,3 +472,4 @@ npx cap sync android
 | --- | --- | --- |
 | v1.0 | 2026-09-19 | 新建 `安卓版/`，按 CommDebug-apk 技术栈完成 Capacitor 工程、离线题库生成、网页资源拆分、CI 工作流；网页资源验收 14/14 通过；首版 APK 产出 |
 | v1.1 | 2026-09-19 | 按《安卓版对齐服务端版：6 件事拍板建议》（D1～D6 全按推荐）实施：改为 4 页面 + 顶部导航并与服务端版对齐；`build_www.py` 重写为从服务端版生成；新增本地接口垫片 `local-api.js` 与 `page-init.js`；新增收藏、笔记、法条浏览；去掉「导入旧版进度」、「重新导入题库」改为「重置为内置题库」；服务端版同步新增法条浏览与 `APP_PATHS`；验收 32/32（安卓）+ 47/47 + 34/34（服务端）+ 55/55（静态）；APK 升到 versionCode 2 / versionName 1.1 |
+| v1.2 | 2026-09-19 | 按《安卓版优化方案-审核意见与执行计划》（O1～O5 全按推荐）实施：**O1** 夜间模式补齐 7 类漏覆盖元素与对比度（不动 `theme-dark` 机制）；**O2** 练习页新增「查看法条」按钮与弹层（取当前题 `law.text`、`textContent` 渲染、切题重置，服务端版 `static/lawtip.js` 两端共用）；**O3** 新增设计 token 层与纯 CSS 背景纹理（零依赖）；**O5** 暗色对比度/覆盖率与法条控件固化为自动验收（安卓 32→44 项、服务端 34→45 项）。验收：44/44 + 47/47 + 45/45 + 55/55；APK 升到 versionCode 3 / versionName 1.2 |
