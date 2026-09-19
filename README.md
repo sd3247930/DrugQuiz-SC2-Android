@@ -10,12 +10,16 @@
 
 ---
 
-## 功能
+## 功能（v1.1 起与服务端版一致）
 
-- **四种练习**：顺序练习（断点续做）、随机练习（打乱 300 题）、错题练习、背题模式
+- **四个页面 + 顶部导航**：首页 / 顺序练习 / 随机练习 / 错题练习 / 答题卡 / 设置
+- **练习**：顺序（断点续做）、随机（打乱 300 题）、错题练习、**自定义选题练习**（按勾选顺序）、背题模式、上一题
 - **解析与法条**：每题作答后自动展开 AI 解析与法律条文依据
-- **错题本 + 统计**：错题自动收录、答对自动移出；正确率（最近一次）、题型分项、累计作答次数
-- **手机适配**：按钮与选项 ≥ 44px、字号 ≥ 14px，单手可点
+- **答题卡**：统计卡、错题本列表、清空错题、**导出错题（JSON）**
+- **选题练习**：按**题型 / 状态（未做、做错、已收藏）/ 关键词**筛选后自由勾题，全选 / 反选 / 清空
+- **法条浏览**：列出法条 → 展开条文原文 → 一键练该法条下的题
+- **收藏与笔记**：逐题收藏、写笔记
+- **设置**：背题模式、夜间模式、字号、答对自动下一题；一键「重置为内置题库（恢复出厂）」
 - **完全离线**：题库内嵌在安装包里（约 350 KB 数据），飞行模式也能刷
 
 判分规则与正式竞赛一致：**多选题选项完全一致才算对**，多选、少选、错选都算错。
@@ -36,14 +40,20 @@
 ```
 安卓版/
 ├─ www/                      # App 内的网页（Capacitor 的 webDir）
-│  ├─ index.html             # 页面结构（由 build_www.py 生成）
-│  ├─ style.css              # 样式（由 build_www.py 生成）
-│  ├─ app.js                 # 应用逻辑（由 build_www.py 生成）
+│  ├─ index.html             # 首页        ┐
+│  ├─ practice.html          # 练习页      ├ 由 build_www.py 从服务端版生成
+│  ├─ answer_card.html       # 答题卡      │
+│  ├─ settings.html          # 设置页      ┘
+│  ├─ style.css / script.js / selection.js / law.js   # ← 服务端版原样复用
+│  ├─ local-api.js           # ★ 本地接口垫片（App 无后端的核心）
+│  ├─ page-init.js           # ★ 填充统计与设置项、导航高亮、重置入口
 │  └─ data-offline.js        # 离线题库（由 generate_offline.py 生成）
+├─ web/                      # App 专用脚本源文件（生成时复制进 www/）
 ├─ data/questions.json       # 题库快照（独立克隆/CI 构建用；本地优先读 ../tools/data/questions.json）
+├─ template_server/          # 服务端版快照（同上用途）
 ├─ generate_offline.py       # 题库 → www/data-offline.js
-├─ build_www.py              # 静态版模板 → www/index.html + style.css + app.js
-├─ verify_www.mjs            # 用真实浏览器验收 App 内网页（14 项）
+├─ build_www.py              # 服务端版模板 + 脚本 → www/（含 Jinja 残留检查与孤儿文件清理）
+├─ verify_www.mjs            # 用真实浏览器验收 App 内网页（32 项）
 ├─ capacitor.config.ts       # Capacitor 配置（包名 / 应用名 / webDir）
 ├─ package.json              # Capacitor 依赖与构建脚本
 ├─ android/                  # Capacitor 生成的 Android 原生工程
@@ -62,11 +72,14 @@ npm install                    # 安装依赖（Capacitor 8）
 python generate_offline.py     # 重新生成离线题库
 python build_www.py            # 重新拆分网页资源
 npx cap sync android           # 同步到 Android 工程
-node verify_www.mjs            # 浏览器验收 App 内网页（14 项）
+node verify_www.mjs            # 浏览器验收 App 内网页（32 项）
 ```
 
 改题流程：在项目源目录重跑 `../tools/import-new-bank.py` → 把新的 `questions.json`
 复制到本目录 `data/questions.json` 更新快照 → 再执行上面第 2～4 条命令 → 重新打包。
+
+改界面流程：改 `../服务端版/`（模板或前端脚本）→ `python build_www.py` → `npx cap sync android`。
+App 会跟着服务端版一起变，这是 v1.1 起的设计（详见 `Claude.md` 第 4.2 节）。
 
 ---
 

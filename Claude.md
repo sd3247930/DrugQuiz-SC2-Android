@@ -2,21 +2,26 @@
 
 > 项目名称：药品管理相关法规知识竞赛试题库（生产二部专用）—— Android 离线版
 > 项目代号：DrugQuiz-SC2-Android
-> 文档版本：v1.0　|　编写日期：2026-09-19
+> 文档版本：v1.1　|　编写日期：2026-09-19
 > 落地目录：`D:\codex code\四合一工具集\药品管理题库\安卓版`
+> 仓库：<https://github.com/sd3247930/DrugQuiz-SC2-Android>
 > 技术栈来源：`E:\5.Question bank testing software\CommDebug-apk`（Capacitor 离线 APK 方案）
-> 配套文档：`README.md`（使用）、`BUILD.md`（构建）
+> 配套文档：`README.md`（使用）、`BUILD.md`（构建）、`../安卓版对齐服务端版：6 件事拍板建议.md`（决策依据）
 
 ---
 
 ## 0. 一句话结论
 
-用与参考项目 **完全一致的技术栈**（Capacitor 8 + 原生 HTML/CSS/JS + Python 生成离线数据 + Gradle 工程 + GitHub Actions 出包），
-把「药品管理题库」的 300 道题（含 AI 解析与法条依据）打包成 **Android 离线 App**：
-装到手机上后不联网、不依赖电脑、不需要浏览器，断网也能刷题。
+用与参考项目一致的技术栈（**Capacitor 8 + 原生 HTML/CSS/JS + Python 生成数据 + Gradle 工程 + GitHub Actions 出包**），
+把「药品管理题库」打包成 **Android 离线 App**；并且从 **v1.1 起，App 的界面与功能与服务端版（Flask）完全对齐**——
+**4 个页面 + 顶部导航 + 选题面板 + 答题卡 + 设置 + 法条浏览**，全部由服务端版模板与脚本生成，两端共用同一份 UI 代码。
 
-**当前状态**：项目工程与离线数据已完成，App 内网页资源经真实浏览器验收 **14/14 通过**；
-APK 需通过 GitHub Actions 构建（本机沙箱环境无法运行 Gradle，原因见第 6.3 节）。
+**当前状态（v1.1）**：
+
+- 工程、离线数据、生成流程、CI 均已就绪，APK 可通过 GitHub Actions 一键产出；
+- 验收：安卓版网页资源 **32/32** 通过；服务端版 pytest **47/47** + 浏览器 **34/34**；静态版 **55/55**（零倒退）；
+- 已产出 APK：`com.drugquiz.sc2`，versionCode 2 / versionName **1.1**；
+- 本机沙箱无法运行 Gradle（原因见第 6.3 节），出包走 GitHub Actions 或在普通 Windows/Android Studio 构建。
 
 ---
 
@@ -25,12 +30,13 @@ APK 需通过 GitHub Actions 构建（本机沙箱环境无法运行 Gradle，�
 | 层 | 技术 | 版本 | 说明 |
 | --- | --- | --- | --- |
 | 移动容器 | Capacitor | **8.5.0** | `@capacitor/core`、`@capacitor/cli`、`@capacitor/android` 三者同版本 |
-| 前端 | 原生 HTML / CSS / JavaScript | — | 与静态版、服务端版共用同一份逻辑来源，**不引入任何前端框架** |
+| 前端 | 原生 HTML / CSS / JavaScript | — | 与服务端版**共用同一份**样式与脚本，不引入任何前端框架 |
+| 离线数据 | `window.__QUESTION_BANK__` | — | 300 题（含 AI 解析与法条），随安装包分发 |
 | 数据生成 | Python | **3.14.6** | `generate_offline.py`、`build_www.py` |
 | 构建工具 | Gradle | **8.14.3** | 由 `android/gradlew` 驱动 |
 | JDK | Temurin OpenJDK | **21.0.12** | Capacitor 8 与 AGP 要求 Java 21 |
 | Android SDK | compileSdk / targetSdk | **36** | build-tools 36.0.0 |
-| 最低系统 | minSdk | **24** | 对应 Android 7.0 及以上 |
+| 最低系统 | minSdk | **24** | Android 7.0 及以上 |
 | 运行时 | Android WebView | — | Capacitor 内置，加载本地 `assets/public` |
 | CI | GitHub Actions | — | Node 22 + JDK 21 + Android SDK 36，产出 APK 工件 |
 
@@ -43,8 +49,8 @@ APK 需通过 GitHub Actions 构建（本机沙箱环境无法运行 Gradle，�
 }
 ```
 
-> 说明：本项目**没有**引入参考项目里的原生 TTS 朗读插件——药品题库当前没有语音朗读功能，
-> 不装载无用插件可以少一层编译风险（如将来要加朗读，按参考项目的 `TextToSpeechPlugin` 方案补即可）。
+> 本项目**没有**引入参考项目里的原生 TTS 朗读插件——药品题库当前没有语音朗读功能，
+> 不装载无用插件可以少一层编译风险（将来要加，照参考项目的 `TextToSpeechPlugin` 方案补即可）。
 
 ---
 
@@ -52,26 +58,33 @@ APK 需通过 GitHub Actions 构建（本机沙箱环境无法运行 Gradle，�
 
 ```
 安卓版/
-├─ www/                         # App 内网页（Capacitor 的 webDir）
-│  ├─ index.html                # 页面结构      ← build_www.py 生成
-│  ├─ style.css                 # 样式          ← build_www.py 生成
-│  ├─ app.js                    # 应用逻辑      ← build_www.py 生成
-│  └─ data-offline.js           # 离线题库      ← generate_offline.py 生成
-├─ generate_offline.py          # 题库 → www/data-offline.js（含校验）
-├─ build_www.py                 # 静态版模板 → www 三件套
-├─ verify_www.mjs               # 真实浏览器验收 App 内网页（14 项）
-├─ capacitor.config.ts          # 包名 / 应用名 / webDir
-├─ package.json / package-lock.json
-├─ android/                     # Capacitor 生成的原生工程（Gradle）
-│  ├─ app/src/main/AndroidManifest.xml
-│  ├─ app/src/main/java/com/drugquiz/sc2/MainActivity.java
-│  ├─ app/src/main/assets/public/   # cap sync 后的网页资源（随安装包分发）
-│  ├─ variables.gradle          # minSdk 24 / compileSdk 36 / targetSdk 36
-│  └─ gradlew(.bat) / build.gradle / settings.gradle
-├─ .github/workflows/build-apk.yml   # CI：生成数据 → 同步 → 校验 → 打包 → 上传
-├─ .gitignore
+├─ www/                          # App 内网页（Capacitor 的 webDir）—— 全部由脚本生成
+│  ├─ index.html                 #    首页：统计 + 练习入口
+│  ├─ practice.html              #    练习页：题干/选项/解析与法条/背题模式/上一题
+│  ├─ answer_card.html           #    答题卡：统计 + 错题本 + 选题面板 + 法条浏览
+│  ├─ settings.html              #    设置：背题模式/夜间模式/字号/自动下一题/重置
+│  ├─ style.css                  #    ← 服务端版 static/style.css（整份复制）
+│  ├─ script.js                  #    ← 服务端版 static/script.js（去掉 SW 注册）
+│  ├─ selection.js               #    ← 服务端版 static/selection.js（选题面板）
+│  ├─ law.js                     #    ← 服务端版 static/law.js（法条浏览）
+│  ├─ local-api.js               #    ★ App 专用：本地接口垫片（顶替 Flask 后端）
+│  ├─ page-init.js               #    ★ App 专用：填充服务端渲染值、导航高亮、重置入口
+│  └─ data-offline.js            #    ← generate_offline.py 生成（300 题）
+├─ web/                          # App 专用脚本的**源文件**（生成时复制进 www/）
+│  ├─ local-api.js
+│  └─ page-init.js
+├─ generate_offline.py           # 题库 → www/data-offline.js（含 300 题校验）
+├─ build_www.py                  # 服务端版模板 + 脚本 → www/（含 Jinja 残留检查）
+├─ verify_www.mjs                # 真实浏览器验收 App 内网页（32 项）
+├─ template_server/              # 服务端版快照（templates/ + static/，供独立克隆 / CI 构建）
+├─ data/questions.json           # 题库快照（同上用途）
+├─ capacitor.config.ts           # 包名 / 应用名 / webDir
+├─ android/                      # Capacitor 生成的原生工程（Gradle）
+│  └─ app/src/main/assets/public/    # cap sync 后的网页资源（随安装包分发）
+├─ .github/workflows/build-apk.yml   # CI：生成 → 同步 → 校验 → 打包 → 上传
+├─ apk/                          # CI 工件下载位置（.gitignore 已忽略）
 ├─ README.md / BUILD.md / Claude.md（本文件）
-└─ 验证截图/                     # 网页资源验收截图
+└─ 验证截图/                      # 网页资源验收截图
 ```
 
 ---
@@ -79,41 +92,42 @@ APK 需通过 GitHub Actions 构建（本机沙箱环境无法运行 Gradle，�
 ## 3. 架构与数据流
 
 ```
-        题库单一数据源（整个项目共用的唯一出处）
-        ../tools/data/questions.json   ← 300 题：题干/选项/答案/解析/法条
-                     │
-                     ├────────────► generate_offline.py
-                     │                     │
-                     │                     ▼
-                     │              www/data-offline.js（window.__QUESTION_BANK__）
-                     │
-        ../tools/index.template.html（静态版页面模板，同一份 UI 来源）
-                     │
-                     └────────────► build_www.py
-                                           │
-                                           ▼
-                              www/index.html + style.css + app.js
-                                           │
-                              npx cap sync android
-                                           │
-                                           ▼
-                   android/app/src/main/assets/public/  ← 随安装包一起分发
-                                           │
-                                  gradlew assembleDebug
-                                           │
-                                           ▼
-                                   DrugQuiz-SC2.apk
+                     题库唯一数据源
+        ../tools/data/questions.json（300 题：题干/选项/答案/解析/法条）
+                        │
+                        ├──────────────► generate_offline.py
+                        │                        │
+                        │                        ▼
+                        │                 www/data-offline.js（window.__QUESTION_BANK__）
+                        │
+        服务端版（Flask）—— App 的界面来源（D1=A：对齐服务端版）
+        ../服务端版/templates/*.html + ../服务端版/static/*.js|css
+                        │
+                        ├──────────────► build_www.py
+                        │                        │
+                        │                        ▼
+                        │        www/{index,practice,answer_card,settings}.html
+                        │        www/{style.css,script.js,selection.js,law.js}
+                        │                        │
+                        │        web/{local-api.js,page-init.js}（App 专用）
+                        │                        │
+                        └────────────────► npx cap sync android
+                                                 │
+                                                 ▼
+                        android/app/src/main/assets/public/ ← 随安装包分发
+                                                 │
+                                        gradlew assembleDebug
+                                                 │
+                                                 ▼
+                                        DrugQuiz-SC2.apk（完全离线）
 ```
 
-**三个交付形态、一份题库**
+**关键设计：与服务端版共用一份 UI 代码**
 
-| 形态 | 位置 | 定位 |
-| --- | --- | --- |
-| 静态单文件版 | 项目根目录 `index.html` | 电脑双击即用、可发网址（GitHub Pages） |
-| 服务端版（Flask） | `服务端版/` | 局域网多设备共享进度、自由选题、答题卡、笔记 |
-| **Android 离线版（本目录）** | `安卓版/` | 手机安装即用、**完全离线**、无需电脑 |
+App 里的页面与交互脚本不是另写的一套，而是从服务端版**生成**的。这样：
 
-三者题库都由 `tools/data/questions.json` 生成，不会出现"手机上的题和电脑上的不一样"。
+1. 服务端版改界面 / 加功能，App 重新生成即可跟上，不会两边分叉；
+2. 唯一的差异被压缩到两个 App 专用文件（`local-api.js`、`page-init.js`）与少量构建期替换。
 
 ---
 
@@ -124,147 +138,163 @@ APK 需通过 GitHub Actions 构建（本机沙箱环境无法运行 Gradle，�
 ```ts
 // capacitor.config.ts
 const config: CapacitorConfig = {
-  appId: "com.drugquiz.sc2",      // Android 包名，安装后用于区分应用
-  appName: "药品法规刷题",          // 手机桌面显示的名称
-  webDir: "www",                  // 网页资源目录，cap sync 时复制进安装包
+  appId: "com.drugquiz.sc2",     // Android 包名
+  appName: "药品法规刷题",         // 手机桌面显示名
+  webDir: "www",                 // 网页资源目录，cap sync 时复制进安装包
   server: { androidScheme: "https" }
 };
 ```
-
-工程由官方 CLI 生成，不手写 Gradle：
 
 ```bash
 npx cap add android      # 生成 android/ 原生工程（Capacitor 8 对应 AGP / SDK 版本）
 npx cap sync android     # 把 www/ 复制到 android/app/src/main/assets/public 并更新插件
 ```
 
-生成结果（实测）：
+### 4.2 从服务端版生成 App 页面（`build_www.py`）
 
-| 项 | 值 |
+转换规则（构建期完成，App 内不依赖任何模板引擎）：
+
+| 服务端版写法 | App 内替换为 |
 | --- | --- |
-| 包名 / applicationId | `com.drugquiz.sc2` |
-| 应用名（strings.xml） | 药品法规刷题 |
-| 主 Activity | `android/app/src/main/java/com/drugquiz/sc2/MainActivity.java`（默认 BridgeActivity） |
-| 资源目录 | `android/app/src/main/assets/public/` |
+| `{% extends %}` / `{% block %}` | 构建时展开成完整 HTML |
+| `{{ url_for('index') }}` 等 | `index.html` / `practice.html?mode=seq` / `answer_card.html` / `settings.html` |
+| `{{ url_for('static', filename='x') }}` | `x` |
+| `{{ stats.* }}`、`{% if settings.* %}checked{% endif %}` | 留空，由 `page-init.js` 用本地接口填充 |
+| `{{ csrf_token }}` | 留空（App 内无后端；垫片不校验） |
+| PWA 的 `manifest` / `apple-touch-icon` 链接 | 删除（App 内不需要） |
+| 「导入旧版进度」区块 | 删除（决策 D3=A） |
+| 「重新导入题库」按钮 | 换成「重置为内置题库（恢复出厂）」（决策 D2） |
+| 页脚「保存在运行本服务的电脑上…」 | 改为「保存在本机（App 私有存储）」 |
+| `script.js` 末尾的 Service Worker 注册 | 删除（App 内资源随安装包分发，注册只会 404） |
 
-### 4.2 网页资源的来源：与静态版**同源拆分**
+**两条安全阀**：
 
-App 里的页面逻辑不是重写的，而是由 `build_www.py` 从**静态版页面模板**（`../tools/index.template.html`）
-机械拆分而来，保证三端 UI 与行为一致：
+1. **Jinja 残留检查**：转换后若仍存在 `{{ ... }}` 或 `{% ... %}`，脚本直接报错退出（实测拦住过 practice 页的 3 处动态值）；
+2. **孤儿文件清理**：`www/` 下不属于本次生成清单的文件会被删除（防止结构变更后的旧文件被误打进包里）。
 
-| 输出 | 来源 | 关键改动 |
-| --- | --- | --- |
-| `www/style.css` | 模板 `<style>` 区块 | 原样抽取 |
-| `www/app.js` | 模板 `<script>` 区块 | ① 题库改为 `window.__QUESTION_BANK__`；② 去掉 Service Worker 相关代码 |
-| `www/index.html` | 模板 `<head>` + `<body>` | 去掉 PWA 的 manifest / apple-touch-icon 引用，改为引入 `style.css`、`data-offline.js`、`app.js` |
-
-模板文件的查找策略与题库一致，保证独立克隆也能构建：
-
-| 优先级 | 路径 | 用途 |
-| --- | --- | --- |
-| 1 | `../tools/index.template.html` | 项目里的**模板唯一来源**（本地开发优先，与网页版保持同步） |
-| 2 | `template/index.template.html` | 本仓库自带的**模板快照**（独立克隆 / CI 构建时使用） |
-
-**为什么去掉 Service Worker**：App 的资源随安装包分发，本就在本地，注册 SW 只会去请求一个不存在的 `sw.js`
-并产生控制台 404 噪音；离线能力由安装包本身保证。因此 `build_www.py` 会把注册函数与调用一并剔除（已实测生成结果中 `serviceWorker` 出现 0 次）。
-
-**为什么这样拆分而不是复制一份代码**：题库与 UI 只要保持"一个来源、多处生成"，就不会出现
-"网页版改了、App 没改"的经典分叉问题。
-
-### 4.3 离线题库生成
+### 4.3 离线题库生成（`generate_offline.py`）
 
 ```python
-# generate_offline.py（核心逻辑）
 bank = json.load(open("../tools/data/questions.json"))   # 300 题
-# 校验：总题数 300、单选 190 / 多选 110、每题有解析与法条、答案必须在选项内
-json.dump(bank, "www/data-offline.js")   # 写成 window.__QUESTION_BANK__ = [...]
+# 校验：总数 300、单选 190 / 多选 110、每题有解析与法条、答案必须在选项内
+json.dump(bank, "www/data-offline.js")   # window.__QUESTION_BANK__ = [...]
 ```
 
-题库文件按优先级查找，保证"本地开发用最新题库、独立克隆也能构建"：
+题库来源按优先级查找，保证"本地开发用最新题库、独立克隆也能构建"：
 
 | 优先级 | 路径 | 用途 |
 | --- | --- | --- |
-| 1 | `../tools/data/questions.json` | 项目里的**题库唯一数据源**（本地开发优先使用） |
-| 2 | `data/questions.json` | 本仓库自带的**题库快照**（独立克隆 / CI 构建时使用） |
+| 1 | `../tools/data/questions.json` | 项目里的**题库唯一数据源** |
+| 2 | `data/questions.json` | 本仓库自带的**题库快照**（独立克隆 / CI） |
 
-> 维护约定：改题请在项目源目录重跑 `tools/import-new-bank.py`，再把新的
-> `questions.json` 复制到 `安卓版/data/questions.json` 更新快照，两者内容应保持一致。
+### 4.4 本地接口垫片（`web/local-api.js`）—— App 无后端的核心
 
-产物 `www/data-offline.js` 实测 **347 KB**，包含：
+服务端版的前端通过 `fetch("/api/...")` 与 Flask 通信。App 内没有后端，垫片**拦截同源 `/api/*` 请求**并在本地作答：
 
-| 字段 | 说明 |
+```js
+window.fetch = function (input, init) {
+  const url = typeof input === "string" ? input : (input && input.url) || "";
+  if (url.indexOf("/api/") === 0) return handle(url, init || {});   // 本地实现
+  return realFetch ? realFetch(input, init) : Promise.reject(new Error("网络不可用"));
+};
+```
+
+实现的接口与服务端版一一对应（14 个）：
+
+| 接口 | 本地实现要点 |
 | --- | --- |
-| `type` | `单选` / `多选` |
-| `question` | 题干 |
-| `options` | 选项数组（4 或 5 个，保留 `A.` 前缀） |
-| `answer` | 答案字母数组，如 `["C"]` / `["A","C"]` |
-| `explanation` | AI 解析（300/300 题均有） |
-| `law` | 法条标题 + 条文原文（300/300 题均有） |
+| `GET /api/questions` | 模式（seq/random/wrong/custom）、筛选（题型/状态/关键词/法条）、ids 保序、分页、reveal |
+| `GET /api/selection/meta` | 题型、状态枚举与计数、法条索引 |
+| `GET /api/question/<id>` | 单题，`reveal=1` 附答案与解析 |
+| `POST /api/submit` | 判分：**多选完全一致才判对**；写进度、答错计数、答对清零 |
+| `POST /api/progress`、`GET /api/progress/all` | 进度读写（旧版结构自动迁移） |
+| `GET /api/wrong` | 错题列表（含错误次数、答案、解析、法条） |
+| `POST /api/collect`、`POST /api/note` | 收藏与笔记 |
+| `POST /api/batch` | 导出错题 / 清空错题 / 清空全部 |
+| `GET /api/stats` | 统计：正确率按**每题最近一次作答**，另计累计作答次数 |
+| `GET/POST /api/settings` | 设置读写 |
+| `GET /api/law/index`、`GET /api/law/<标题>` | 法条索引与条文原文 |
+| `POST /api/import` | App 内题库为内置，返回内置题库信息（不改变数据） |
 
-校验不通过脚本会直接报错退出，不会生成"缺题少解析"的安装包。
+**字段适配**：题库文件用的是静态版字段（`type`/`question`/`options`/`answer[]`），
+垫片内部转换成服务端版接口字段（`qtype`/`stem`/`options[[字母,文本]]`/`answer` 字符串），因此前端脚本无需改动。
 
-### 4.4 数据存储：App 内同样是浏览器本地存储
+**进度数据格式与迁移**：`drug_quiz_data` 直接采用服务端版的结构
+（`{题号: {answered, correct, selected, attempts, wrong_count, collected, note}}`）。
+首次启动时若发现旧版结构（`{currentIndex, records}`），会自动迁移，**升级不丢进度**。
 
-Capacitor 用 WebView 承载页面，页面的 `localStorage` 落在 App 的私有存储里，
-因此静态版那套键名可以**原样复用**：
+### 4.5 页面初始化（`web/page-init.js`）
 
-| 键名 | 内容 |
-| --- | --- |
-| `drug_quiz_data` | 顺序练习进度 + 每题作答记录（含累计次数） |
-| `drug_quiz_wrong` | 错题本 + 每题答错次数 |
-| `drug_quiz_settings` | 设置（背题模式等） |
+服务端版由 Flask 渲染的少量内容，在 App 内由本文件填充：
 
-影响：卸载 App 或"清除应用数据"会丢失进度；进度不跨设备同步（与静态版口径一致）。
+- 首页 / 答题卡的统计卡与进度文案（`#statTotal`、`#statAnswered`、`#cardAnswered` 等）；
+- 设置页的开关与字号下拉（`#setBackMode`、`#setDark`、`#setFont`、`#setAutoNext`）；
+- 练习页副标题与顶部导航高亮（App 内模式由 URL 决定）；
+- 「重置为内置题库（恢复出厂）」按钮：清空 `drug_quiz_data` / `drug_quiz_wrong` / `drug_quiz_settings` / `drug_quiz_selection` 四项本地数据（题库本身不删）。
 
-### 4.5 CI 的两道校验（防"空壳包"）
+### 4.6 前端路径常量（`APP_PATHS`）
 
-`.github/workflows/build-apk.yml` 在打包前做两件事，避免出现"App 装上了但一道题都没有"：
+服务端版页面走 Flask 路由（`/practice/seq`），App 内是静态文件（`practice.html?mode=seq`）。
+`script.js` / `selection.js` 统一通过常量跳转，垫片在加载前端脚本之前覆盖它：
 
-1. **题库计数校验**：`data-offline.js` 必须存在、包含 `window.__QUESTION_BANK__`，且题目数 ≥ 300；
-2. **资源一致性校验**：`android/app/src/main/assets/public/index.html` 与 `www/index.html` 必须一致（否则说明忘了 `cap sync`）。
+```js
+// 服务端版默认（script.js）
+const APP_PATHS = window.APP_PATHS || { home: "/", practice: ..., custom: ... };
+// App 内（local-api.js 提前设置）
+window.APP_PATHS = { home: "index.html", practice: m => "practice.html?mode=" + m,
+                     custom: ids => "practice.html?mode=custom&ids=" + ids.join(",") };
+```
 
-### 4.6 手机适配（沿用静态版已验证的样式）
+### 4.7 CI 的两道校验（防"空壳包"）
+
+`.github/workflows/build-apk.yml` 在打包前检查：
+
+1. **题库完整性**：`data-offline.js` 存在、含 `window.__QUESTION_BANK__`、题目数 = 300（单选 190 / 多选 110）、含解析与法条字段；
+2. **资源完整性**：4 个页面 + 6 个脚本/样式文件齐全，且 `answer_card.html`、`local-api.js` 与 `www/` 一致（防止忘记 `cap sync`）。
+
+### 4.8 手机适配
 
 - 按钮最小高度 48px、选项点击区 ≥ 44px、正文字号 ≥ 14px；
-- 393×852（主流手机）下四个页面均无横向溢出（实测 393/393）；
-- 触摸操作不依赖悬停，选项用原生 `radio` / `checkbox` 承载，便于系统无障碍朗读。
+- 393×852（主流手机）下各页面无横向溢出（实测 393/393）；
+- 选项用原生 `radio` / `checkbox`，便于系统无障碍朗读；
+- 多页面结构下，Android 返回键走浏览器历史，回退符合直觉。
 
 ---
 
 ## 5. 验收
 
-### 5.1 App 内网页资源（已完成）
+### 5.1 App 内网页资源（`node verify_www.mjs`，**32 / 32 通过**）
 
-`node verify_www.mjs`——用真实 Edge 无头浏览器、手机尺寸 393×852 打开 `www/`，**14 / 14 通过**：
+真实 Edge 无头浏览器、手机尺寸 393×852：
 
-| 验收项 | 结果 |
+| 分组 | 覆盖项 |
 | --- | --- |
-| App 标题正确 | 通过 |
-| 离线题库加载成功（300 题） | 通过（data-offline.js 300 题 / 应用读取 300 题） |
-| 每题均含解析与法条 | 通过 |
-| 顺序练习进度显示 300 题 | 通过 |
-| 判分正确（单选答对） | 通过 |
-| 作答后自动展开解析与法条 | 通过（解析 187 字 / 法条 212 字） |
-| 背题模式可用 | 通过（高亮答案 + 显示解析） |
-| 答错提示正确 | 通过 |
-| 错题本记录错题 | 通过 |
-| 统计页正确率与题型分项 | 通过 |
-| 刷新后进度保留 | 通过（2 条 → 2 条） |
-| 手机尺寸无横向溢出 | 通过（393 / 393） |
-| 无 JS 报错 / 无控制台错误 | 通过 |
+| 首页 | 标题、离线题库 300 题、统计由本地接口填充、无「导入旧版进度」、顶部导航 6 项 |
+| 练习页 | 进度显示、题型标签、选项渲染、判分正确、作答后自动展开解析与法条、上一题、背题模式 |
+| 答题卡 | 错题本列表、统计填充、选题面板打开、默认 50 条、题型筛选、关键词筛选、勾选多题、按勾选顺序开始练习、自定义练习题数 |
+| 法条浏览 | 列出法条、展开条文原文、一键练习该法条下的题 |
+| 设置 | 夜间模式保存生效、「重置为内置题库」入口存在、无「重新导入题库」 |
+| 通用 | 进度持久化、手机尺寸无横向溢出、无 JS 报错、无控制台错误 |
 
 截图见 `验证截图/01~04`。
 
-### 5.2 APK 真机验收（待 CI 出包后执行）
+### 5.2 服务端版 / 静态版回归（确认零倒退）
+
+| 对象 | 验收 | 结果 |
+| --- | --- | --- |
+| 服务端版（Flask） | `pytest tests/ -q` | **47 / 47 通过** |
+| 服务端版（Flask） | `node tools/verify-server-ui.mjs` | **34 / 34 通过**（含新增的法条浏览 3 项） |
+| 静态单文件版 | `node tools/verify-ui.mjs` | **55 / 55 通过** |
+
+### 5.3 APK 真机验收（待你在手机上执行）
 
 | 编号 | 验收项 | 判定方式 |
 | --- | --- | --- |
 | AV-1 | APK 可安装、桌面图标名为「药品法规刷题」 | 真机安装 |
-| AV-2 | 打开后显示 300 题、无需联网 | 首次启动即断网测试 |
-| AV-3 | **飞行模式下**可完整刷题（顺序/随机/错题/背题） | 关键验收项 |
-| AV-4 | 作答后解析与法条正常显示、可滚动阅读 | 抽 5 题核对 |
-| AV-5 | 杀进程后重开，进度仍在 | 真机验证 |
-| AV-6 | 返回键行为正常（不直接退出到系统桌面异常） | 真机操作 |
+| AV-2 | **飞行模式下**可完整刷题（顺序/随机/错题/自定义/背题） | 关键验收项 |
+| AV-3 | 四个页面与顶部导航可正常跳转，返回键行为正常 | 真机操作 |
+| AV-4 | 选题面板、答题卡、设置、法条浏览在真机上可正常使用 | 真机操作 |
+| AV-5 | 杀进程后重开，进度与收藏仍在 | 真机验证 |
 
 ---
 
@@ -274,21 +304,21 @@ Capacitor 用 WebView 承载页面，页面的 `localStorage` 落在 App 的私�
 
 ```bash
 npm install                  # 安装 Capacitor 依赖
-python generate_offline.py   # 生成离线题库（含 300 题校验）
-python build_www.py          # 拆分网页资源
+python generate_offline.py   # 生成离线题库（300 题校验）
+python build_www.py          # 从服务端版生成网页资源（Jinja 残留检查）
 npx cap sync android         # 同步到 Android 工程
-node verify_www.mjs          # 浏览器验收（可选但推荐）
+node verify_www.mjs          # 浏览器验收（32 项）
 cd android && gradlew assembleDebug   # 打包
 ```
 
 ### 6.2 推荐路径：GitHub Actions
 
-推送代码后在 **Actions → Build DrugQuiz APK → Run workflow**，约 5～8 分钟出包，
-在运行页底部下载 `DrugQuiz-APK` 工件（含 APK 与 SHA-256）。
+推送后在 **Actions → Build DrugQuiz APK → Run workflow** 触发，
+约 2～3 分钟出包，在运行页底部下载 `DrugQuiz-APK` 工件（含 APK 与 SHA-256）。
 
 ### 6.3 本机构建受限（重要）
 
-本机沙箱环境**无法运行 Gradle 构建**，报错：
+本机沙箱环境**无法运行 Gradle 构建**：
 
 ```
 java.io.IOException: Unable to establish loopback connection
@@ -304,8 +334,8 @@ java.io.IOException: Unable to establish loopback connection
 | 依赖与 SDK | ✅ npm 依赖、JDK 21、Android SDK 36 均已就绪 |
 | Gradle 常驻守护模式 | ❌ 另报 `Could not create service of type FileLockContentionHandler` |
 
-即：限制出现在 Gradle **启动 daemon 子进程并与之建立回环连接**这一环，属环境限制，
-与项目配置无关（参考项目 `CommDebug-apk` 的 `BUILD.md` 记录了完全相同的问题）。
+即限制出现在 Gradle **启动 daemon 子进程并与之建立回环连接**这一环，属环境限制
+（参考项目 `CommDebug-apk` 的 `BUILD.md` 记录了完全相同的问题）。
 
 **应对**：走 GitHub Actions，或在普通 Windows / Android Studio 环境本地打包。
 
@@ -313,18 +343,20 @@ java.io.IOException: Unable to establish loopback connection
 
 ## 7. 与参考项目 CommDebug-apk 的技术对照
 
-| 技术点 | CommDebug-apk | 本项目（安卓版） |
+| 技术点 | CommDebug-apk | 本项目（安卓版 v1.1） |
 | --- | --- | --- |
 | 容器 | Capacitor 8 | 同 |
-| 网页目录 | `www/`（index.html + app.js + style.css + data-offline.js） | 同结构 |
-| 离线数据生成 | `generate_offline.py`（题库 + 教材章节） | `generate_offline.py`（题库 + 解析 + 法条） |
-| 额外生成脚本 | — | **`build_www.py`**：从静态版模板拆分出三件套，保证与网页版同源 |
+| 网页目录 | `www/`（index + app.js + style.css + data-offline.js） | `www/`（4 页面 + 5 脚本 + 样式 + 数据） |
+| 页面来源 | 自建单页 | **从服务端版生成**（模板 + 脚本整份复用） |
+| 后端替代 | 无（纯静态） | **本地接口垫片 `local-api.js`**（实现 14 个接口） |
+| 离线数据 | `generate_offline.py`（题库 + 章节） | `generate_offline.py`（题库 + 解析 + 法条） |
+| 额外构建脚本 | — | `build_www.py`（Jinja 转换 + 孤儿文件清理 + SW 移除） |
 | 原生插件 | 自研 TTS 朗读插件 | 无（本期无朗读需求） |
 | 包名 / 应用名 | `com.commdebug.questionbank` / Comm Debug | `com.drugquiz.sc2` / 药品法规刷题 |
 | SDK | minSdk 24 / compileSdk 36 | 同 |
-| CI 校验 | 朗读三层实现 + 资产一致性 | 题库 ≥300 题 + 资产一致性 |
-| 产物 | `Comm Debug.apk`（debug） | `DrugQuiz-SC2.apk`（debug） |
-| 已知环境限制 | Gradle loopback（记录在 BUILD.md） | 同（已复现并记录在第 6.3 节） |
+| CI 校验 | 朗读三层实现 + 资产一致性 | 题库 300 题（含解析/法条）+ 4 页面与脚本齐全 + 资产一致性 |
+| 产物 | `Comm Debug.apk` | `DrugQuiz-SC2.apk`（debug，4.0 MB） |
+| 已知环境限制 | Gradle loopback（BUILD.md） | 同（见第 6.3 节） |
 
 ---
 
@@ -334,16 +366,25 @@ java.io.IOException: Unable to establish loopback connection
 
 ```bash
 cd "D:\codex code\四合一工具集\药品管理题库"
-python tools/import-new-bank.py      # 从 private/单选题、private/多选题 重新生成题库（含校验）
+python tools/import-new-bank.py          # 从 private/单选题、private/多选题 重新生成题库
 cd 安卓版
-python generate_offline.py           # 重新生成离线数据
-npx cap sync android                 # 同步进工程
+python generate_offline.py               # 重新生成离线数据
+npx cap sync android                     # 同步进工程
 ```
 
-### 8.2 改界面 / 改交互
+### 8.2 改界面 / 加功能（重要）
 
-改 `../tools/index.template.html`（静态版模板）后执行 `python build_www.py`——
-**网页版与 App 会一起变**，这是"同源"的好处；不要在 `www/app.js` 里直接改，下次生成会被覆盖。
+**改服务端版**（`../服务端版/templates/*.html`、`../服务端版/static/*.js|css`），然后：
+
+```bash
+cd 安卓版
+python build_www.py      # 重新生成 App 页面（同时刷新 template_server 快照）
+npx cap sync android
+node verify_www.mjs      # 32 项验收
+```
+
+> 不要手改 `www/` 下的文件——它们每次生成都会被覆盖。App 特有的逻辑请写在 `web/local-api.js`、`web/page-init.js`。
+> 若服务端版新增了需要客户端填充的渲染值，`build_www.py` 的 Jinja 残留检查会报错，提示你补转换规则。
 
 ### 8.3 升级 Capacitor
 
@@ -360,11 +401,11 @@ npx cap sync android
 
 | 编号 | 类型 | 内容 | 应对 |
 | --- | --- | --- | --- |
-| R-1 | 环境 | 本机无法运行 Gradle，出包依赖 CI | 已提供 CI 工作流；本地改动请走 Android Studio |
-| R-2 | 产物 | 当前为 debug 包，未签名 release、未上架 | 如需正式分发，需配置签名与版本号策略 |
-| R-3 | 数据 | 进度只在本机、卸载即丢 | 如需保留，可后续加"导出/导入进度" |
-| R-4 | 合规 | 题库含法规条文与解析，属内部培训资料 | 建议仅内部分发，公网仓库注意可见范围 |
-| R-5 | 待办 | APK 真机验收（第 5.2 节 6 项）尚未执行 | CI 出包后在安卓手机上逐项验证 |
+| R-1 | 环境 | 本机无法运行 Gradle，出包依赖 CI | 已提供 CI；本地改动请走 Android Studio |
+| R-2 | 生成链 | 服务端版结构大改时，转换规则可能需要同步调整 | Jinja 残留检查会直接报错，不会静默产出坏页面 |
+| R-3 | 产物 | 当前为 debug 包，未签名 release、未上架 | 如需正式分发，需配置签名与版本号策略 |
+| R-4 | 数据 | 进度只在本机，卸载即丢 | 后续可加"导出/导入进度" |
+| R-5 | 待办 | APK 真机验收（第 5.3 节 5 项）尚未执行 | 装到手机后逐项验证，重点是飞行模式与返回键 |
 
 ---
 
@@ -376,7 +417,7 @@ npx cap sync android
 | --- | --- |
 | 安装依赖 | `npm install` |
 | 生成离线题库 | `python generate_offline.py` |
-| 生成网页资源 | `python build_www.py` |
+| 从服务端版生成页面 | `python build_www.py` |
 | 同步到 Android 工程 | `npx cap sync android` |
 | 浏览器验收 | `node verify_www.mjs` |
 | 打包（本地） | `cd android && gradlew assembleDebug` |
@@ -384,19 +425,21 @@ npx cap sync android
 
 ### 10.2 关键文件清单
 
-| 文件 | 作用 |
-| --- | --- |
-| `capacitor.config.ts` | 包名、应用名、webDir |
-| `generate_offline.py` | 题库 → `www/data-offline.js`（含校验） |
-| `build_www.py` | 静态版模板 → `www/index.html` / `style.css` / `app.js` |
-| `www/data-offline.js` | 300 题离线数据（347 KB） |
-| `android/app/src/main/assets/public/` | 随安装包分发的网页资源 |
-| `android/app/src/main/AndroidManifest.xml` | 应用声明（含 INTERNET 权限，Capacitor 默认） |
-| `.github/workflows/build-apk.yml` | CI：生成 → 同步 → 校验 → 打包 → 上传工件 |
-| `verify_www.mjs` | App 内网页的浏览器验收（14 项） |
+| 文件 | 作用 | 来源 |
+| --- | --- | --- |
+| `capacitor.config.ts` | 包名、应用名、webDir | 手写 |
+| `generate_offline.py` | 题库 → `www/data-offline.js`（含校验） | 手写 |
+| `build_www.py` | 服务端版 → `www/`（Jinja 转换 + 校验 + 清理） | 手写 |
+| `web/local-api.js` | 本地接口垫片（14 个接口） | 手写 |
+| `web/page-init.js` | 渲染值填充、导航高亮、重置入口 | 手写 |
+| `www/*.html`、`www/*.js`、`www/style.css` | App 内网页资源 | **自动生成** |
+| `template_server/`、`data/questions.json` | 快照，供独立克隆 / CI 构建 | 自动刷新 |
+| `.github/workflows/build-apk.yml` | CI：生成 → 同步 → 校验 → 打包 → 上传 | 手写 |
+| `verify_www.mjs` | 网页资源浏览器验收（32 项） | 手写 |
 
 ### 10.3 版本记录
 
 | 版本 | 日期 | 内容 |
 | --- | --- | --- |
-| v1.0 | 2026-09-19 | 新建 `安卓版/`，按 CommDebug-apk 技术栈完成 Capacitor 工程、离线题库生成、网页资源拆分、CI 工作流；网页资源浏览器验收 14/14 通过 |
+| v1.0 | 2026-09-19 | 新建 `安卓版/`，按 CommDebug-apk 技术栈完成 Capacitor 工程、离线题库生成、网页资源拆分、CI 工作流；网页资源验收 14/14 通过；首版 APK 产出 |
+| v1.1 | 2026-09-19 | 按《安卓版对齐服务端版：6 件事拍板建议》（D1～D6 全按推荐）实施：改为 4 页面 + 顶部导航并与服务端版对齐；`build_www.py` 重写为从服务端版生成；新增本地接口垫片 `local-api.js` 与 `page-init.js`；新增收藏、笔记、法条浏览；去掉「导入旧版进度」、「重新导入题库」改为「重置为内置题库」；服务端版同步新增法条浏览与 `APP_PATHS`；验收 32/32（安卓）+ 47/47 + 34/34（服务端）+ 55/55（静态）；APK 升到 versionCode 2 / versionName 1.1 |
