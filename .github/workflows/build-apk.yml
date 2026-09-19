@@ -74,8 +74,6 @@ jobs:
           grep -q '"explanation":' android/app/src/main/assets/public/data-offline.js || { echo "❌ 缺少解析字段"; exit 1; }
           grep -q '"law":' android/app/src/main/assets/public/data-offline.js || { echo "❌ 缺少法条字段"; exit 1; }
           diff android/app/src/main/assets/public/index.html www/index.html >/dev/null || { echo "❌ index.html 与 www 不一致，需重新 cap sync"; exit 1; }
-          test -f android/app/src/main/assets/public/app.js
-          test -f android/app/src/main/assets/public/style.css
           # 页面结构：4 个页面 + 本地接口垫片 + 前端脚本（v1.1 起与服务端版对齐）
           for f in index.html practice.html answer_card.html settings.html \
                    local-api.js page-init.js script.js selection.js law.js style.css; do
