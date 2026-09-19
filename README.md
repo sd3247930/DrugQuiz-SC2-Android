@@ -40,6 +40,7 @@
 │  ├─ style.css              # 样式（由 build_www.py 生成）
 │  ├─ app.js                 # 应用逻辑（由 build_www.py 生成）
 │  └─ data-offline.js        # 离线题库（由 generate_offline.py 生成）
+├─ data/questions.json       # 题库快照（独立克隆/CI 构建用；本地优先读 ../tools/data/questions.json）
 ├─ generate_offline.py       # 题库 → www/data-offline.js
 ├─ build_www.py              # 静态版模板 → www/index.html + style.css + app.js
 ├─ verify_www.mjs            # 用真实浏览器验收 App 内网页（14 项）
@@ -64,8 +65,8 @@ npx cap sync android           # 同步到 Android 工程
 node verify_www.mjs            # 浏览器验收 App 内网页（14 项）
 ```
 
-改题流程：改 `../tools/data/questions.json`（或重跑 `../tools/import-new-bank.py`）→
-再执行上面第 2～4 条命令 → 重新打包。
+改题流程：在项目源目录重跑 `../tools/import-new-bank.py` → 把新的 `questions.json`
+复制到本目录 `data/questions.json` 更新快照 → 再执行上面第 2～4 条命令 → 重新打包。
 
 ---
 

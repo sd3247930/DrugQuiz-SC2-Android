@@ -173,6 +173,16 @@ bank = json.load(open("../tools/data/questions.json"))   # 300 题
 json.dump(bank, "www/data-offline.js")   # 写成 window.__QUESTION_BANK__ = [...]
 ```
 
+题库文件按优先级查找，保证"本地开发用最新题库、独立克隆也能构建"：
+
+| 优先级 | 路径 | 用途 |
+| --- | --- | --- |
+| 1 | `../tools/data/questions.json` | 项目里的**题库唯一数据源**（本地开发优先使用） |
+| 2 | `data/questions.json` | 本仓库自带的**题库快照**（独立克隆 / CI 构建时使用） |
+
+> 维护约定：改题请在项目源目录重跑 `tools/import-new-bank.py`，再把新的
+> `questions.json` 复制到 `安卓版/data/questions.json` 更新快照，两者内容应保持一致。
+
 产物 `www/data-offline.js` 实测 **347 KB**，包含：
 
 | 字段 | 说明 |

@@ -25,15 +25,32 @@ import os
 import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(os.path.dirname(BASE), "tools", "data", "questions.json")
 OUT = os.path.join(BASE, "www", "data-offline.js")
+
+# 题库来源按优先级查找：
+#   1) ../tools/data/questions.json  —— 项目里的题库唯一数据源（本地开发时优先，保证用的是最新题库）
+#   2) ./data/questions.json         —— 仓库内自带的题库快照（本仓库独立克隆/CI 构建时使用）
+SRC_CANDIDATES = [
+    os.path.join(os.path.dirname(BASE), "tools", "data", "questions.json"),
+    os.path.join(BASE, "data", "questions.json"),
+]
+
+
+def find_source():
+    """按优先级找到题库文件；都找不到时退出并给出提示"""
+    for path in SRC_CANDIDATES:
+        if os.path.exists(path):
+            return path
+    print("❌ 找不到题库文件，已尝试以下位置：")
+    for path in SRC_CANDIDATES:
+        print("   - %s" % path)
+    print("   请先在本项目根目录运行：python tools/import-new-bank.py")
+    sys.exit(1)
 
 
 def main():
-    if not os.path.exists(SRC):
-        sys.exit("❌ 找不到题库源文件：%s\n   请先在项目根目录运行：python tools/import-new-bank.py" % SRC)
-
-    with io.open(SRC, encoding="utf-8") as f:
+    src = find_source()
+    with io.open(src, encoding="utf-8") as f:
         bank = json.load(f)
 
     # 校验（与静态版、服务端版同一套口径）
@@ -73,6 +90,7 @@ def main():
 
     size_kb = os.path.getsize(OUT) / 1024
     print("✅ 已生成离线题库：%s" % OUT)
+    print("   题库来源：%s" % src)
     print("   题目：%d 题（单选 %d / 多选 %d），文件 %.0f KB" % (len(bank), single, multi, size_kb))
     print("   每题均含 AI 解析与法条依据")
 
