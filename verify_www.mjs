@@ -88,7 +88,11 @@ async function main() {
     check("首页统计由本地接口填充", (await page.textContent("#statTotal")).trim() === "300",
       "总题数 " + (await page.textContent("#statTotal")).trim());
     check("首页不再有「导入旧版进度」入口", (await page.locator("#importOldBtn").count()) === 0);
-    check("顶部导航 6 项", (await page.locator(".nav a").count()) === 6, `${await page.locator(".nav a").count()} 项`);
+    check("底部导航 4 个 tab（设计稿）", (await page.locator(".tabbar .tab").count()) === 4,
+      `${await page.locator(".tabbar .tab").count()} 个`);
+    check("顶部品牌栏显示 logo 与部门标识",
+      (await page.locator(".app-bar-logo img").count()) === 1 &&
+      (await page.textContent(".app-bar-chip")).indexOf("生产二部") >= 0);
     await page.screenshot({ path: path.join(SHOT_DIR, "01-安卓版-首页.png") });
 
     /* --- 2. 练习页：作答 → 解析与法条 --- */

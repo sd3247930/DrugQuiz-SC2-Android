@@ -285,80 +285,195 @@ body.theme-dark .sel-no { color: #9aa6b8; }
 body.theme-dark .sel-stem { color: #d8dee8; }
 
 /* ============================================================
+   设计稿布局（顶部品牌栏 + 底部 4 tab）—— 对应 设计稿 02~05 页
+   规格：顶栏 56px 深青底白字；底栏 60px；屏幕边距 16px；底部留白 72px
+   ============================================================ */
+.app {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 0;
+  background: var(--surface);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* 顶部品牌栏 */
+.app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: 8px var(--gutter);
+  background: var(--primary);
+  color: #fff;
+}
+.app-bar-logo {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  overflow: hidden;
+}
+.app-bar-logo img { width: 30px; height: auto; display: block; }
+.app-bar-text { display: flex; flex-direction: column; min-width: 0; }
+.app-bar-title {
+  font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+}
+.app-bar-sub { font-size: 12px; line-height: 1.3; color: rgba(255, 255, 255, 0.82); }
+.app-bar-chip {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+/* 内容区：为底部导航与操作条留出空间 */
+.app-main {
+  padding: var(--gutter);
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--scroll-offset));
+}
+
+/* 底部导航：4 个 tab */
+.tabbar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 100%;
+  max-width: 820px;
+  height: calc(var(--tabbar-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.05);
+}
+.tabbar .tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  min-height: 48px;
+}
+.tabbar .tab svg {
+  width: 22px; height: 22px;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.tabbar .tab.active { color: var(--primary); }
+.tabbar .tab.active svg { stroke-width: 2.2; }
+body.theme-dark .tabbar { background: var(--surface); border-color: var(--border); }
+
+/* ============================================================
    视觉优化（O3）
    做法：在文件末尾追加"设计 token 层 + 精修规则"，以覆盖方式生效——
    既有规则与 30 条 theme-dark 规则保持不变，降低回归风险。
    设计 token 同时承担暗色主题：body.theme-dark 只需重定义变量。
    ============================================================ */
+/* 字体自托管（设计稿指定 Plus Jakarta Sans 标题 / Inter 正文；离线可用，中文回退系统字体） */
+@font-face { font-family: "Inter"; src: url("fonts/inter-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Inter"; src: url("fonts/inter-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Inter"; src: url("fonts/inter-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Plus Jakarta Sans"; src: url("fonts/jakarta-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Plus Jakarta Sans"; src: url("fonts/jakarta-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
 :root {
-  /* 颜色 */
-  --bg: #eef3f9;
-  --surface: #ffffff;
-  --surface-soft: #f7f9fc;
-  --text: #1f2733;
-  --text-2: #5b6472;
-  --text-3: #8a94a6;
-  --border: #e3e9f1;
-  --primary: #1a5fb4;
-  --primary-strong: #154a8a;
-  --primary-soft: #e8f0fe;
-  --success: #2e7d32;
-  --success-soft: #e6f4ea;
-  --danger: #c0392b;
-  --danger-soft: #fdecea;
-  --warning: #b26a00;
-  --warning-soft: #fff2e0;
-  /* 圆角 / 间距 / 阴影 */
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
+  /* ===== 设计 token：来自设计稿 DESIGN.md（Regulatory Clinical Modern）===== */
+  /* 画布与卡片 */
+  --bg: #f8fafc;                 /* Slate 50 画布 */
+  --surface: #ffffff;            /* 卡片 */
+  --surface-soft: #f1f5f9;       /* Slate 100 次级面 */
+  --border: #e2e8f0;             /* Slate 200 描边 */
+  --border-strong: #cbd5e1;      /* Slate 300 浮起态描边 */
+  /* 文字 */
+  --text: #0f172a;               /* Slate 900 正文（WCAG AAA） */
+  --text-2: #475569;             /* Slate 600 次要信息 */
+  --text-3: #64748b;             /* Slate 500 标签 */
+  /* 品牌主色（深青） */
+  --primary: #0f5b78;
+  --primary-strong: #0b4459;
+  --primary-soft: #e0f2fe;       /* 选中底色 */
+  --primary-tint: #f0f9ff;       /* 选中卡片底色 */
+  /* 状态色 */
+  --success: #10b981;            /* 合规/答对 */
+  --success-soft: #f0fdf4;
+  --danger: #ef4444;             /* 违规/答错 */
+  --danger-soft: #fef2f2;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  /* 圆角（Soft 1 体系） */
+  --radius-pill: 4px;            /* 题型标签 */
+  --radius-sm: 6px;              /* 主按钮、状态 chip、网格标记 */
+  --radius: 8px;                 /* 选项卡片、底部弹层 */
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+  /* 阴影（低对比描边 + 极柔环境阴影） */
+  --shadow-sm: 0 2px 4px 0 rgba(15, 23, 42, 0.04);
+  --shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  --shadow-sheet: 0 -8px 24px -4px rgba(15, 23, 42, 0.12);
+  /* 间距 */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px;
+  --gutter: 16px;                /* 屏幕外边距 */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tabbar-h: 60px;              /* 底部导航高度 */
+  --scroll-offset: 72px;         /* 底部留白，避免被操作条遮挡 */
 }
 
 /* 暗色主题：只重定义 token（保留 theme-dark 机制，不动 30 条既有规则） */
 body.theme-dark {
-  --bg: #10141a;
-  --surface: #1b2029;
-  --surface-soft: #232a35;
-  --text: #e6e9ef;
-  --text-2: #b9c2cf;
-  --text-3: #9aa6b8;
-  --border: #2f3844;
-  --primary: #7db3f0;
-  --primary-strong: #9dc4f0;
-  --primary-soft: #23324a;
-  --success: #8fd6a0;
-  --success-soft: #14301c;
-  --danger: #f0a79e;
-  --danger-soft: #3a1d1a;
+  --bg: #0b1622;                 /* 深青黑画布 */
+  --surface: #101f2e;
+  --surface-soft: #16283a;
+  --border: #24384d;
+  --border-strong: #33506b;
+  --text: #e6eef7;
+  --text-2: #b9c8da;
+  --text-3: #93a4b8;
+  --primary: #7cc4e8;            /* 深色底上的浅青 */
+  --primary-strong: #a8dbf5;
+  --primary-soft: #10394d;
+  --primary-tint: #0e2b3b;
+  --success: #4ade80;
+  --success-soft: #102a1c;
+  --danger: #fca5a5;
+  --danger-soft: #3a1a1a;
   --warning: #e0b070;
   --warning-soft: #3a2f14;
-  --shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.35);
+  --shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.45);
+  --shadow-sheet: 0 -8px 24px -4px rgba(0, 0, 0, 0.5);
 }
 
-/* 1) 背景：纯 CSS 渐变 + 细网格纹理（0 依赖、0 运行时开销） */
+/* 1) 画布：设计稿要求 Level 0 为纯色平面（不使用纹理），保留极轻的品牌光晕 */
 body {
   background-color: var(--bg);
-  background-image:
-    radial-gradient(circle at 12% 6%, rgba(26, 95, 180, 0.10), transparent 40%),
-    radial-gradient(circle at 88% 94%, rgba(26, 95, 180, 0.07), transparent 44%),
-    repeating-linear-gradient(0deg, rgba(26, 95, 180, 0.035) 0 1px, transparent 1px 24px),
-    repeating-linear-gradient(90deg, rgba(26, 95, 180, 0.035) 0 1px, transparent 1px 24px);
-  background-repeat: no-repeat, no-repeat, repeat, repeat;
+  background-image: radial-gradient(circle at 50% 0%, rgba(15, 91, 120, 0.05), transparent 38%);
+  background-repeat: no-repeat;
   color: var(--text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
 }
-body.theme-dark {
-  background-image:
-    radial-gradient(circle at 12% 6%, rgba(125, 179, 240, 0.10), transparent 42%),
-    radial-gradient(circle at 88% 94%, rgba(125, 179, 240, 0.06), transparent 46%),
-    repeating-linear-gradient(0deg, rgba(125, 179, 240, 0.03) 0 1px, transparent 1px 24px),
-    repeating-linear-gradient(90deg, rgba(125, 179, 240, 0.03) 0 1px, transparent 1px 24px);
-}
+body.theme-dark { background-image: radial-gradient(circle at 50% 0%, rgba(124, 196, 232, 0.06), transparent 40%); }
 
 /* 2) 主卡片与表单控件 */
 .app { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow); }

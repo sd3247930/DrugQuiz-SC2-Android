@@ -12,21 +12,20 @@
 </head>
 <body>
 <div class="app">
-  <header class="app-header">
-    <h1>药品管理相关法规知识竞赛试题库（生产二部专用）</h1>
-    <div class="subtitle">生产二部 · 法规知识竞赛刷题 · </div>
+  <!-- 顶部品牌栏（设计稿：深青底、白字、含部门标识） -->
+  <header class="app-bar">
+    <span class="app-bar-logo">
+      <img src="logo-header.png" alt="">
+    </span>
+    <span class="app-bar-text">
+      <span class="app-bar-title">药品法规刷题</span>
+      <span class="app-bar-sub"> · </span>
+    </span>
+    <span class="app-bar-chip">生产二部</span>
   </header>
 
-  <nav class="nav">
-    <a href="index.html" class="">首页</a>
-    <a href="practice.html?mode=seq" class="">顺序练习</a>
-    <a href="practice.html?mode=random" class="">随机练习</a>
-    <a href="practice.html?mode=wrong" class="">错题练习</a>
-    <a href="answer_card.html" class="">答题卡</a>
-    <a href="settings.html" class="">设置</a>
-  </nav>
-
-  
+  <main class="app-main">
+    
 <div id="quiz" data-mode="seq" data-back="0">
   <div class="progress" id="quizProgress">正在加载题目…</div>
   <div class="q-head">
@@ -74,9 +73,30 @@
 </div>
 
 
-  <footer class="footer">
-    练习进度、错题本、收藏与笔记保存在本机（App 私有存储），不上传任何外部服务器。
-  </footer>
+    <footer class="footer">
+      练习进度、错题本、收藏与笔记保存在本机（App 私有存储），不上传任何外部服务器。
+    </footer>
+  </main>
+
+  <!-- 底部导航（设计稿：4 个 tab，图标 + 文字） -->
+  <nav class="tabbar">
+    <a href="index.html" class="tab ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 10v11h6v-6h6v6h6V10z"/></svg>
+      <span>首页</span>
+    </a>
+    <a href="practice.html?mode=seq" class="tab ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l5 5v13H6zM14 3v6h6"/></svg>
+      <span>练习</span>
+    </a>
+    <a href="answer_card.html" class="tab ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 10h16M10 4v16"/></svg>
+      <span>答题卡</span>
+    </a>
+    <a href="settings.html" class="tab ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 2.6 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9.5 4.1a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21.4 11a2 2 0 1 1 0 4z"/></svg>
+      <span>设置</span>
+    </a>
+  </nav>
 </div>
 
 <div class="toast" id="toast"></div>
