@@ -29,13 +29,20 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install required SDK components
+      # 说明：不再使用 android-actions/setup-android@v3 —— 该动作会尝试安装已被官方移除的
+      # `tools` 包，在较新的 runner 镜像上直接报错（Failed to find package 'tools'）。
+      # GitHub 的 ubuntu-latest runner 已预装 Android SDK，这里只补装工程需要的组件。
+      - name: Prepare Android SDK
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
+          fi
+          echo "使用 sdkmanager：$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          yes | "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
           ls "$ANDROID_HOME/platforms/"
           ls "$ANDROID_HOME/build-tools/"
 
