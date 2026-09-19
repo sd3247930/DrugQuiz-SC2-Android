@@ -158,6 +158,13 @@ App 里的页面逻辑不是重写的，而是由 `build_www.py` 从**静态版�
 | `www/app.js` | 模板 `<script>` 区块 | ① 题库改为 `window.__QUESTION_BANK__`；② 去掉 Service Worker 相关代码 |
 | `www/index.html` | 模板 `<head>` + `<body>` | 去掉 PWA 的 manifest / apple-touch-icon 引用，改为引入 `style.css`、`data-offline.js`、`app.js` |
 
+模板文件的查找策略与题库一致，保证独立克隆也能构建：
+
+| 优先级 | 路径 | 用途 |
+| --- | --- | --- |
+| 1 | `../tools/index.template.html` | 项目里的**模板唯一来源**（本地开发优先，与网页版保持同步） |
+| 2 | `template/index.template.html` | 本仓库自带的**模板快照**（独立克隆 / CI 构建时使用） |
+
 **为什么去掉 Service Worker**：App 的资源随安装包分发，本就在本地，注册 SW 只会去请求一个不存在的 `sw.js`
 并产生控制台 404 噪音；离线能力由安装包本身保证。因此 `build_www.py` 会把注册函数与调用一并剔除（已实测生成结果中 `serviceWorker` 出现 0 次）。
 

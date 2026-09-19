@@ -23,14 +23,31 @@ import re
 import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE = os.path.join(os.path.dirname(BASE), "tools", "index.template.html")
 WWW = os.path.join(BASE, "www")
+
+# 页面模板按优先级查找（与 generate_offline.py 的题库来源策略一致）：
+#   1) ../tools/index.template.html —— 项目里的模板唯一来源（本地开发优先，保证与网页版同步）
+#   2) ./template/index.template.html —— 仓库自带快照（独立克隆 / CI 构建时使用）
+TEMPLATE_CANDIDATES = [
+    os.path.join(os.path.dirname(BASE), "tools", "index.template.html"),
+    os.path.join(BASE, "template", "index.template.html"),
+]
+
+
+def find_template():
+    """按优先级找到页面模板；都找不到时退出并给出提示"""
+    for path in TEMPLATE_CANDIDATES:
+        if os.path.exists(path):
+            return path
+    print("❌ 找不到页面模板，已尝试以下位置：")
+    for path in TEMPLATE_CANDIDATES:
+        print("   - %s" % path)
+    sys.exit(1)
 
 
 def main():
-    if not os.path.exists(TEMPLATE):
-        sys.exit("❌ 找不到页面模板：%s" % TEMPLATE)
-    with io.open(TEMPLATE, encoding="utf-8") as f:
+    template = find_template()
+    with io.open(template, encoding="utf-8") as f:
         tpl = f.read()
 
     # ---- 1) 样式 ----
@@ -104,6 +121,7 @@ def main():
         f.write("/* 由 build_www.py 从 tools/index.template.html 抽取；题库来自 data-offline.js */\n" + js + "\n")
 
     print("✅ 已生成 Android 网页资源")
+    print("   模板来源：%s" % template)
     for name in ("index.html", "style.css", "app.js"):
         path = os.path.join(WWW, name)
         print("   %s  %.1f KB" % (name.ljust(12), os.path.getsize(path) / 1024))
