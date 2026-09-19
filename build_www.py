@@ -38,6 +38,12 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 WWW = os.path.join(BASE, "www")
 WEB = os.path.join(BASE, "web")        # App 专用脚本（local-api.js / page-init.js）
 
+# 生成清单（复制、清理、校验都以此为准，避免"复制了但被当孤儿删掉"这类不一致）
+PAGES = ("index.html", "practice.html", "answer_card.html", "settings.html")
+STATIC_COPIES = ("style.css", "script.js", "selection.js", "law.js", "lawtip.js")
+APP_SCRIPTS = ("local-api.js", "page-init.js")
+GENERATED_EXTRA = ("data-offline.js",)   # 由 generate_offline.py 产出
+
 # 服务端版目录按优先级查找：
 #   1) ../服务端版              —— 开发时用项目里的服务端版（保证与之同步）
 #   2) ./template_server/       —— 仓库自带快照（独立克隆 / CI 构建）
@@ -198,7 +204,9 @@ def main():
         write(os.path.join(WWW, out_name), html)
 
     # 样式与前端脚本整份复制（App 与服务端共用同一份代码）
-    for name in ("style.css", "selection.js", "law.js"):
+    for name in STATIC_COPIES:
+        if name == "script.js":
+            continue                      # script.js 需要特殊处理（去 Service Worker），见下
         write(os.path.join(WWW, name), read(os.path.join(static_dir, name)))
 
     # script.js 特例：去掉 Service Worker 注册（App 内资源随安装包分发，注册只会 404）
@@ -212,16 +220,12 @@ def main():
     write(os.path.join(WWW, "script.js"), script)
 
     # App 专用脚本
-    for name in ("local-api.js", "page-init.js"):
+    for name in APP_SCRIPTS:
         write(os.path.join(WWW, name), read(os.path.join(WEB, name)))
 
     # 清理孤儿文件：www 下不属于本次生成清单的文件一律删除
     # （保留 generate_offline.py 产出的 data-offline.js，避免版本切换后的残留被误打进包里）
-    managed = {
-        "index.html", "practice.html", "answer_card.html", "settings.html",
-        "style.css", "script.js", "selection.js", "law.js",
-        "local-api.js", "page-init.js", "data-offline.js"
-    }
+    managed = set(PAGES) | set(STATIC_COPIES) | set(APP_SCRIPTS) | set(GENERATED_EXTRA)
     removed = []
     for name in os.listdir(WWW):
         path = os.path.join(WWW, name)
@@ -247,8 +251,7 @@ def main():
                 write(os.path.join(snapshot, sub, name), read(src_file))
         # 说明：PWA 图标（png）属二进制且 App 内用不到，不纳入快照
         print("   已刷新快照：%s" % snapshot)
-    for name in ("index.html", "practice.html", "answer_card.html", "settings.html",
-                 "style.css", "script.js", "selection.js", "law.js", "local-api.js", "page-init.js"):
+    for name in PAGES + STATIC_COPIES + APP_SCRIPTS:
         path = os.path.join(WWW, name)
         print("   %s  %.1f KB" % (name.ljust(18), os.path.getsize(path) / 1024))
     if not os.path.exists(os.path.join(WWW, "data-offline.js")):

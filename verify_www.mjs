@@ -133,6 +133,41 @@ async function main() {
     check("上一题按钮可用", (await page.textContent("#quizProgress")) !== progressBefore,
       `${progressBefore.trim()} → ${(await page.textContent("#quizProgress")).trim()}`);
 
+    /* --- 3.5 查看法条（O2） --- */
+    check("练习页显示「查看法条」按钮", (await page.locator("#lawTipBtn").count()) === 1);
+    await page.click("#lawTipBtn");
+    await page.waitForSelector("#lawTipSheet:not(.hidden)", { timeout: 8000 });
+    const tip = await page.evaluate(() => ({
+      title: document.getElementById("lawTipTitle").textContent.trim(),
+      text: ((document.querySelector("#lawTipBody .lawtip-text") || {}).textContent || "").trim()
+    }));
+    const curQ = await page.evaluate(async () => {
+      const qid = Number(document.getElementById("questionNo").textContent.replace(/\D/g, ""));
+      const d = await (await fetch("/api/question/" + qid + "?reveal=1")).json();
+      return { qid: qid, text: ((d.law || {}).text || "").trim() };
+    });
+    check("点击后弹出的是本题对应的法条（不是同一条）",
+      tip.text.length > 20 && tip.text === curQ.text,
+      `题号 ${curQ.qid}，弹层 ${tip.text.length} 字 / 本题 ${curQ.text.length} 字`);
+    await page.screenshot({ path: path.join(SHOT_DIR, "05-安卓版-查看法条.png") });
+    await page.click("#lawTipClose");
+    await page.waitForTimeout(300);
+    check("法条弹层可关闭", ((await page.getAttribute("#lawTipSheet", "class")) || "").includes("hidden"));
+    /* 作答本题后再切题，验证控件状态随切题重置（未作答时"下一题"是隐藏的） */
+    const tipQ = await page.evaluate(async () => {
+      const qid = Number(document.getElementById("questionNo").textContent.replace(/\D/g, ""));
+      const d = await (await fetch("/api/question/" + qid + "?reveal=1")).json();
+      return d.answer.split("");
+    });
+    for (const letter of tipQ) await page.click(`#options input[value="${letter}"]`);
+    await page.click("#submitBtn");
+    await page.waitForTimeout(300);
+    await page.click("#nextBtn");
+    await page.waitForTimeout(400);
+    check("切题后法条控件状态已重置",
+      ((await page.getAttribute("#lawTipSheet", "class")) || "").includes("hidden") &&
+      (await page.textContent("#lawTipBtn")).indexOf("查看法条") >= 0);
+
     /* --- 4. 答错 → 错题本 --- */
     const wrongLetter = await page.evaluate(() => {
       const no = Number(document.getElementById("questionNo").textContent.replace(/\D/g, ""));
@@ -215,6 +250,56 @@ async function main() {
     await page.uncheck("#setDark");
     await page.click("#saveSettingsBtn");
     await page.waitForTimeout(400);
+
+    /* --- 7.5 夜间模式：覆盖 + 对比度（O1 / O5） --- */
+    const DARK_SELECTORS = [
+      ["进度文字", ".progress"], ["概览文字", ".summary"], ["统计标签", ".stat-label"],
+      ["题号", ".q-no"], ["题型标签", ".type-tag"], ["模式说明", ".mode-label"],
+      ["解析标题", ".explain-title"], ["提示文字", ".hint"], ["页脚", ".footer"]
+    ];
+    const measureDark = () => page.evaluate((sels) => {
+      function parse(rgb) {
+        const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/.exec(rgb);
+        return m ? { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4] } : null;
+      }
+      function lum(c) {
+        const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+      }
+      function bgOf(el) {
+        let node = el;
+        while (node) {
+          const c = parse(getComputedStyle(node).backgroundColor);
+          if (c && c.a > 0.5) return c;
+          node = node.parentElement;
+        }
+        return { r: 255, g: 255, b: 255, a: 1 };
+      }
+      const low = [];
+      sels.forEach(([label, sel]) => {
+        const el = document.querySelector(sel);
+        if (!el || !el.textContent.trim()) return;
+        const fg = parse(getComputedStyle(el).color);
+        if (!fg) return;
+        const l1 = lum(fg), l2 = lum(bgOf(el));
+        const ratio = Math.round(((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)) * 100) / 100;
+        if (ratio < 4.5) low.push(label + " " + ratio + ":1");
+      });
+      return { dark: document.body.classList.contains("theme-dark"), low };
+    }, DARK_SELECTORS);
+
+    for (const [pageName, pageUrl] of [["首页", "index.html"], ["练习页", "practice.html?mode=seq"],
+                                       ["答题卡", "answer_card.html"], ["设置页", "settings.html"]]) {
+      await page.goto(BASE + pageUrl, { waitUntil: "load" });
+      await page.evaluate(() => localStorage.setItem("drug_quiz_settings", JSON.stringify({ dark_mode: true })));
+      await page.reload({ waitUntil: "load" });
+      await page.waitForTimeout(500);
+      const dark = await measureDark();
+      check(`${pageName}：夜间模式已启用`, dark.dark);
+      check(`${pageName}：暗色下文字对比度均 ≥ 4.5:1`, dark.low.length === 0, dark.low.join("、"));
+    }
+    await page.goto(BASE + "settings.html", { waitUntil: "load" });
+    await page.evaluate(() => localStorage.setItem("drug_quiz_settings", JSON.stringify({ dark_mode: false })));
 
     /* --- 8. 刷新后进度保留（App 私有存储） --- */
     const before = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("drug_quiz_data") || "{}")).length);

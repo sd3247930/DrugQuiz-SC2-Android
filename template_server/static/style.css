@@ -247,3 +247,189 @@ body.theme-dark .filter-group input[type="search"] { background: #232a35; color:
 body.theme-dark .sheet-list,
 body.theme-dark .sel-row { border-color: #2f3844; }
 body.theme-dark .sheet-count { color: #b9c2cf; }
+
+/* ============================================================
+   暗色模式补齐（O1）
+   实测发现：以下元素原先没有暗色规则，导致夜间模式下
+   仍显示亮色文字/底色，对比度不足 4.5:1。这里统一补齐。
+   ============================================================ */
+/* 1) 次要文字：原 #5b6472 在深色底上对比度仅 2.73:1 */
+body.theme-dark .progress,
+body.theme-dark .summary,
+body.theme-dark .stat-label,
+body.theme-dark .q-no,
+body.theme-dark .mode-label { color: #9aa6b8; }
+
+/* 2) 蓝色小标题：原 #1a5fb4 在深色底上仅 2.41:1 */
+body.theme-dark .explain-title,
+body.theme-dark .law-title-btn,
+body.theme-dark .wrong-title { color: #7db3f0; }
+
+/* 3) 题型标签：原亮蓝底 rgb(232,240,254) 在夜间模式下刺眼 */
+body.theme-dark .type-tag { background: #23324a; color: #9dc4f0; }
+
+/* 4) 作答结果与选项的对错态：原浅绿/浅红在深色底上过亮 */
+body.theme-dark .result.ok { background: #14301c; color: #8fd6a0; }
+body.theme-dark .result.bad { background: #3a1d1a; color: #f0a79e; }
+body.theme-dark .option.correct { background: #16351f; border-color: #3d8b48; color: #d8dee8; }
+body.theme-dark .option.wrong { background: #3a1d1a; border-color: #c0392b; color: #d8dee8; }
+
+/* 5) 选题面板里的题型徽标 */
+body.theme-dark .badge-single { background: #23324a; color: #9dc4f0; }
+body.theme-dark .badge-multi { background: #3a2f14; color: #e0b070; }
+
+/* 6) 面板里"已选/计数/状态图标"等辅助文字 */
+body.theme-dark .sel-no { color: #9aa6b8; }
+body.theme-dark .sel-stem { color: #d8dee8; }
+
+/* ============================================================
+   视觉优化（O3）
+   做法：在文件末尾追加"设计 token 层 + 精修规则"，以覆盖方式生效——
+   既有规则与 30 条 theme-dark 规则保持不变，降低回归风险。
+   设计 token 同时承担暗色主题：body.theme-dark 只需重定义变量。
+   ============================================================ */
+:root {
+  /* 颜色 */
+  --bg: #eef3f9;
+  --surface: #ffffff;
+  --surface-soft: #f7f9fc;
+  --text: #1f2733;
+  --text-2: #5b6472;
+  --text-3: #8a94a6;
+  --border: #e3e9f1;
+  --primary: #1a5fb4;
+  --primary-strong: #154a8a;
+  --primary-soft: #e8f0fe;
+  --success: #2e7d32;
+  --success-soft: #e6f4ea;
+  --danger: #c0392b;
+  --danger-soft: #fdecea;
+  --warning: #b26a00;
+  --warning-soft: #fff2e0;
+  /* 圆角 / 间距 / 阴影 */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+}
+
+/* 暗色主题：只重定义 token（保留 theme-dark 机制，不动 30 条既有规则） */
+body.theme-dark {
+  --bg: #10141a;
+  --surface: #1b2029;
+  --surface-soft: #232a35;
+  --text: #e6e9ef;
+  --text-2: #b9c2cf;
+  --text-3: #9aa6b8;
+  --border: #2f3844;
+  --primary: #7db3f0;
+  --primary-strong: #9dc4f0;
+  --primary-soft: #23324a;
+  --success: #8fd6a0;
+  --success-soft: #14301c;
+  --danger: #f0a79e;
+  --danger-soft: #3a1d1a;
+  --warning: #e0b070;
+  --warning-soft: #3a2f14;
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* 1) 背景：纯 CSS 渐变 + 细网格纹理（0 依赖、0 运行时开销） */
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 12% 6%, rgba(26, 95, 180, 0.10), transparent 40%),
+    radial-gradient(circle at 88% 94%, rgba(26, 95, 180, 0.07), transparent 44%),
+    repeating-linear-gradient(0deg, rgba(26, 95, 180, 0.035) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, rgba(26, 95, 180, 0.035) 0 1px, transparent 1px 24px);
+  background-repeat: no-repeat, no-repeat, repeat, repeat;
+  color: var(--text);
+}
+body.theme-dark {
+  background-image:
+    radial-gradient(circle at 12% 6%, rgba(125, 179, 240, 0.10), transparent 42%),
+    radial-gradient(circle at 88% 94%, rgba(125, 179, 240, 0.06), transparent 46%),
+    repeating-linear-gradient(0deg, rgba(125, 179, 240, 0.03) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, rgba(125, 179, 240, 0.03) 0 1px, transparent 1px 24px);
+}
+
+/* 2) 主卡片与表单控件 */
+.app { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.progress, .summary { color: var(--text-2); }
+.stat-item { background: var(--surface-soft); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.stat-label { color: var(--text-3); }
+.stat-value { color: var(--primary); }
+.stat-section { color: var(--text); }
+
+/* 3) 顶部导航：圆角胶囊 + 当前项强调 */
+.nav a { border-radius: 999px; background: var(--surface-soft); color: var(--text-2); border: 1px solid var(--border); }
+.nav a.active { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: var(--shadow-sm); }
+
+/* 4) 题干卡片化：与选项拉开层次，左侧色条强调 */
+.question {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text);
+}
+
+/* 5) 选项卡片：更大的圆角与轻微悬浮反馈 */
+.option {
+  border-radius: var(--radius);
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: border-color .15s, background .15s, transform .12s, box-shadow .15s;
+}
+.option:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.option.selected { border-color: var(--primary); background: var(--primary-soft); }
+.option.correct { border-color: var(--success); background: var(--success-soft); }
+.option.wrong { border-color: var(--danger); background: var(--danger-soft); }
+
+/* 6) 按钮：统一圆角与主色 */
+.menu-btn { border-radius: var(--radius); background: var(--primary); }
+.menu-btn:hover { background: var(--primary-strong); }
+.btn { border-radius: var(--radius); }
+.btn-primary { background: var(--primary); }
+.btn-primary:hover { background: var(--primary-strong); }
+.btn-secondary { background: var(--surface-soft); color: var(--text-2); border: 1px solid var(--border); }
+.btn-danger { background: var(--danger); }
+.switch, .chip, .btn-lawtip { border-radius: var(--radius); border-color: var(--border); background: var(--surface-soft); color: var(--text-2); }
+.switch.on, .chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* 7) 结果提示、标签、徽标走 token 色 */
+.result.ok { background: var(--success-soft); color: var(--success); }
+.result.bad { background: var(--danger-soft); color: var(--danger); }
+.type-tag { background: var(--primary-soft); color: var(--primary); }
+.badge-single { background: var(--primary-soft); color: var(--primary); }
+.badge-multi { background: var(--warning-soft); color: var(--warning); }
+.explain, .wrong-row, .law-row, .field, .sheet { background: var(--surface-soft); border-color: var(--border); }
+.explain-title, .law-title-btn, .wrong-title { color: var(--primary); }
+.hint, .footer, .subtitle, .mode-label, .q-no { color: var(--text-3); }
+
+/* ============================================================
+   练习页「查看法条」按钮（O2）
+   ============================================================ */
+.btn-lawtip {
+  flex: 0 0 auto; min-height: 44px; padding: 0 16px; font-size: 14px; font-family: inherit;
+  border: 1px solid #cfd8e3; border-radius: 8px; background: #f4f6f9; color: #33415c; cursor: pointer;
+}
+.btn-lawtip:hover { border-color: #1a5fb4; color: #1a5fb4; }
+.btn-lawtip:disabled { opacity: .5; cursor: not-allowed; }
+body.theme-dark .btn-lawtip { background: #2b333f; color: #dde3ec; border-color: #39424f; }
+body.theme-dark .btn-lawtip:hover { border-color: #7db3f0; color: #7db3f0; }
+
+/* 弹层内的条文排版 */
+.lawtip-title { font-size: 15px; font-weight: 600; color: #1a5fb4; margin: 4px 0 10px; }
+.lawtip-text { font-size: 15px; line-height: 1.8; color: #333; white-space: pre-wrap; word-break: break-word; }
+.lawtip-hint { font-size: 13px; color: #8a94a6; margin-top: 12px; }
+body.theme-dark .lawtip-title { color: #7db3f0; }
+body.theme-dark .lawtip-text { color: #d8dee8; }
+body.theme-dark .lawtip-hint { color: #9aa6b8; }

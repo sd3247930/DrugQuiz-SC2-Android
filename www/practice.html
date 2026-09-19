@@ -36,6 +36,11 @@
   <div class="question" id="questionText"></div>
 
   <div class="mode-row">
+    <span class="mode-label">本题依据的法条</span>
+    <button class="btn-lawtip" id="lawTipBtn" type="button">查看法条</button>
+  </div>
+
+  <div class="mode-row">
     <span class="mode-label">背题模式：直接显示答案与解析，不判题</span>
     <button class="switch" id="backModeBtn" type="button">关</button>
   </div>
@@ -62,6 +67,15 @@
   <div class="hint" id="emptyHint"></div>
 </div>
 
+<!-- 法条弹层（复用选题面板的全屏弹层样式） -->
+<div class="sheet hidden" id="lawTipSheet">
+  <div class="sheet-header">
+    <span class="sheet-title" id="lawTipTitle">法条</span>
+    <button class="sheet-close" id="lawTipClose" type="button">✕</button>
+  </div>
+  <div class="sheet-list" id="lawTipBody"></div>
+</div>
+
 
   <footer class="footer">
     练习进度、错题本、收藏与笔记保存在本机（App 私有存储），不上传任何外部服务器。
@@ -74,6 +88,7 @@
 <script src="script.js"></script>
 
 <script>window.PAGE = 'practice';</script>
+<script src="lawtip.js"></script>
 
 <script src="page-init.js"></script>
 </body>

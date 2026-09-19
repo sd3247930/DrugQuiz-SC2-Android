@@ -136,6 +136,12 @@ async function renderQuestion() {
   if (session.back) {
     await revealForBackMode();
   }
+
+  /* 供扩展脚本（如「查看法条」）在切题后同步刷新自身状态 */
+  if (typeof window.onQuestionRendered === "function") {
+    window.onQuestionRendered(item);
+  }
+
   window.scrollTo(0, 0);
 }
 
