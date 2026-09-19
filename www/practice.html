@@ -14,11 +14,11 @@
 <div class="app">
   <header class="app-header">
     <h1>药品管理相关法规知识竞赛试题库（生产二部专用）</h1>
-    <div class="subtitle">生产二部 · 法规知识竞赛刷题</div>
+    <div class="subtitle">生产二部 · 法规知识竞赛刷题 · </div>
   </header>
 
   <nav class="nav">
-    <a href="index.html" class="active">首页</a>
+    <a href="index.html" class="">首页</a>
     <a href="practice.html?mode=seq" class="">顺序练习</a>
     <a href="practice.html?mode=random" class="">随机练习</a>
     <a href="practice.html?mode=wrong" class="">错题练习</a>
@@ -27,32 +27,39 @@
   </nav>
 
   
-<div id="menu">
-  <div class="progress" id="menuProgress">
-    当前进度：已作答  题 / 共  题
+<div id="quiz" data-mode="seq" data-back="0">
+  <div class="progress" id="quizProgress">正在加载题目…</div>
+  <div class="q-head">
+    <span class="type-tag" id="questionType"></span>
+    <span class="q-no" id="questionNo"></span>
   </div>
-  <div class="summary" id="menuSummary">
-    错题  题 · 最近一次正确率
-    
-    · 累计作答  次
+  <div class="question" id="questionText"></div>
+
+  <div class="mode-row">
+    <span class="mode-label">背题模式：直接显示答案与解析，不判题</span>
+    <button class="switch" id="backModeBtn" type="button">关</button>
   </div>
 
-  <div class="stat-grid">
-    <div class="stat-item"><div class="stat-label">题库总题数</div><div class="stat-value" id="statTotal"></div></div>
-    <div class="stat-item"><div class="stat-label">已答题数</div><div class="stat-value" id="statAnswered"></div></div>
-    <div class="stat-item"><div class="stat-label">最近一次正确率</div>
-      <div class="stat-value" id="statAccuracy"></div></div>
-    <div class="stat-item"><div class="stat-label">错题数</div><div class="stat-value" id="statWrong"></div></div>
-    <div class="stat-item"><div class="stat-label">累计作答次数</div><div class="stat-value" id="statAttempts"></div></div>
-    <div class="stat-item"><div class="stat-label">尚未作答</div><div class="stat-value" id="statUnanswered"></div></div>
+  <div id="options"></div>
+  <div class="result hidden" id="resultBox"></div>
+
+  <div class="explain hidden" id="explainBox">
+    <div class="explain-section">
+      <div class="explain-title">解析</div>
+      <div class="explain-text" id="explainText"></div>
+    </div>
+    <div class="explain-section">
+      <div class="explain-title" id="lawTitle">法条依据</div>
+      <div class="explain-text" id="lawText"></div>
+    </div>
   </div>
 
-  <div class="stat-section">练习入口</div>
-  <a class="menu-btn" href="practice.html?mode=seq">顺序做全部 <span id="entryTotal"></span> 题</a>
-  <a class="menu-btn" href="practice.html?mode=random">随机练习（打乱题目顺序）</a>
-  <a class="menu-btn" href="practice.html?mode=wrong">错题练习（只做错题）</a>
-  <a class="menu-btn gray" href="answer_card.html">查看错题本 / 答题卡</a>
-  <a class="menu-btn gray" href="settings.html">查看设置</a>
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="prevBtn" type="button">上一题</button>
+    <button class="btn btn-primary" id="submitBtn" type="button">提交答案</button>
+    <button class="btn btn-primary hidden" id="nextBtn" type="button">下一题</button>
+  </div>
+  <div class="hint" id="emptyHint"></div>
 </div>
 
 
@@ -66,7 +73,7 @@
 <script src="local-api.js"></script>
 <script src="script.js"></script>
 
-<script>window.PAGE = 'home';</script>
+<script>window.PAGE = 'practice';</script>
 
 <script src="page-init.js"></script>
 </body>

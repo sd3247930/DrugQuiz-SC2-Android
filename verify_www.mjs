@@ -2,7 +2,8 @@
  * 文件名称：安卓版/verify_www.mjs
  * 文件作用：
  *     在真实浏览器里验收 Android 版的网页资源（www/）——即 App 打开后看到的内容。
- *     覆盖：题库加载、判分、解析与法条、背题模式、错题本、统计、刷新保留、无报错、手机尺寸无溢出。
+ *     App 页面对齐服务端版（4 个页面 + 顶部导航 + 选题面板 + 答题卡 + 设置 + 法条浏览），
+ *     本脚本覆盖这些能力的端到端验收。
  *
  * 用法：node verify_www.mjs
  */
@@ -16,6 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WWW = path.join(__dirname, "www");
 const SHOT_DIR = path.join(__dirname, "验证截图");
 const PORT = 4199;
+const BASE = `http://localhost:${PORT}/`;
 
 const PW_CANDIDATES = [];
 if (process.env.PW_PLAYWRIGHT) PW_CANDIDATES.push(process.env.PW_PLAYWRIGHT);
@@ -75,32 +77,32 @@ async function main() {
   page.on("pageerror", (e) => pageErrors.push(String(e)));
 
   try {
-    await page.goto(`http://localhost:${PORT}/index.html`, { waitUntil: "load" });
+    /* --- 1. 首页：本地接口填充统计 + 导航 --- */
+    await page.goto(BASE + "index.html", { waitUntil: "load" });
+    await page.waitForFunction(() => {
+      const el = document.getElementById("statTotal");
+      return el && el.textContent.trim() === "300";
+    }, { timeout: 8000 });
+    check("App 标题正确", (await page.title()).indexOf("药品管理相关法规知识竞赛试题库") >= 0, await page.title());
+    check("离线题库加载成功（300 题）", (await page.evaluate(() => (window.__QUESTION_BANK__ || []).length)) === 300);
+    check("首页统计由本地接口填充", (await page.textContent("#statTotal")).trim() === "300",
+      "总题数 " + (await page.textContent("#statTotal")).trim());
+    check("首页不再有「导入旧版进度」入口", (await page.locator("#importOldBtn").count()) === 0);
+    check("顶部导航 6 项", (await page.locator(".nav a").count()) === 6, `${await page.locator(".nav a").count()} 项`);
+    await page.screenshot({ path: path.join(SHOT_DIR, "01-安卓版-首页.png") });
 
-    /* 1. 资源与题库 */
-    const info = await page.evaluate(() => ({
-      title: document.title,
-      bank: (window.__QUESTION_BANK__ || []).length,
-      stats: window.__BANK_STATS__ || null,
-      size: QUESTION_BANK.length,
-      hasExpl: QUESTION_BANK.every((q) => q.explanation && q.explanation.trim()),
-      hasLaw: QUESTION_BANK.every((q) => q.law && q.law.text && q.law.text.trim())
-    }));
-    check("App 标题正确", info.title.indexOf("药品管理相关法规知识竞赛试题库") >= 0, info.title);
-    check("离线题库加载成功（300 题）", info.bank === 300 && info.size === 300, `data-offline.js ${info.bank} 题 / 应用读取 ${info.size} 题`);
-    check("每题均含解析与法条", info.hasExpl && info.hasLaw);
-    check("顺序练习进度显示 300 题",
-      (await page.textContent("#menuProgress")).indexOf("300") > 0, (await page.textContent("#menuProgress")).trim());
-    await page.screenshot({ path: path.join(SHOT_DIR, "01-安卓版-主菜单.png") });
-
-    /* 2. 作答 → 解析与法条 */
-    await page.click("#btnFull");
+    /* --- 2. 练习页：作答 → 解析与法条 --- */
+    await page.goto(BASE + "practice.html?mode=seq", { waitUntil: "load" });
     await page.waitForSelector("#questionText:not(:empty)", { timeout: 8000 });
-    const qid = await page.evaluate(() => order[cursor]);
-    const q = await page.evaluate((id) => QUESTION_BANK[id], qid);
+    check("练习页进度显示 300 题", /第 \d+ \/ 300 题/.test(await page.textContent("#quizProgress")), (await page.textContent("#quizProgress")).trim());
+    check("题型标签显示", ((await page.textContent("#questionType")) || "").length > 0, await page.textContent("#questionType"));
+    check("选项渲染正常（≥4 个）", (await page.locator("#options .option").count()) >= 4);
+
+    const qid = await page.evaluate(() => Number(document.getElementById("questionNo").textContent.replace(/\D/g, "")));
+    const q = await page.evaluate(async (id) => (await fetch("/api/question/" + id + "?reveal=1")).json(), qid);
     for (const letter of q.answer) await page.click(`#options input[value="${letter}"]`);
     await page.click("#submitBtn");
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
     const answered = await page.evaluate(() => ({
       result: document.getElementById("resultBox").textContent,
       shown: !document.getElementById("explainBox").classList.contains("hidden"),
@@ -112,11 +114,11 @@ async function main() {
       `解析 ${answered.expl} 字 / 法条 ${answered.law} 字`);
     await page.screenshot({ path: path.join(SHOT_DIR, "02-安卓版-解析与法条.png") });
 
-    /* 3. 背题模式 */
+    /* --- 3. 背题模式 + 上一题 --- */
     await page.click("#nextBtn");
-    await page.waitForTimeout(200);
-    await page.click("#backModeBtn");
     await page.waitForTimeout(300);
+    await page.click("#backModeBtn");
+    await page.waitForTimeout(400);
     const back = await page.evaluate(() => ({
       on: document.getElementById("backModeBtn").classList.contains("on"),
       correct: document.querySelectorAll("#options label.correct").length,
@@ -124,46 +126,108 @@ async function main() {
     }));
     check("背题模式可用（高亮答案 + 显示解析）", back.on && back.correct >= 1 && back.shown);
     await page.click("#backModeBtn");
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(300);
+    const progressBefore = await page.textContent("#quizProgress");
+    await page.click("#prevBtn");
+    await page.waitForTimeout(300);
+    check("上一题按钮可用", (await page.textContent("#quizProgress")) !== progressBefore,
+      `${progressBefore.trim()} → ${(await page.textContent("#quizProgress")).trim()}`);
 
-    /* 4. 答错 → 错题本 */
-    const cur = await page.evaluate(() => {
-      const q = QUESTION_BANK[order[cursor]];
-      const letters = q.options.map((o) => o.trim().charAt(0));
-      return { wrong: letters.find((l) => q.answer.indexOf(l) < 0) };
+    /* --- 4. 答错 → 错题本 --- */
+    const wrongLetter = await page.evaluate(() => {
+      const no = Number(document.getElementById("questionNo").textContent.replace(/\D/g, ""));
+      const item = (window.__QUESTION_BANK__ || []).find((x) => x.id === no);
+      const letters = item.options.map((o) => o.trim().charAt(0));
+      return letters.find((l) => item.answer.indexOf(l) < 0);
     });
-    await page.click(`#options input[value="${cur.wrong}"]`);
+    await page.click(`#options input[value="${wrongLetter}"]`);
     await page.click("#submitBtn");
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
     check("答错提示正确", (await page.textContent("#resultBox")).indexOf("回答错误") >= 0);
-    await page.click('button:has-text("返回菜单")');
-    await page.click('button:has-text("查看错题本")');
+
+    /* --- 5. 答题卡：统计、错题列表、选题面板 --- */
+    await page.goto(BASE + "answer_card.html", { waitUntil: "load" });
+    await page.waitForSelector("#wrongList .wrong-row", { timeout: 8000 });
+    check("答题卡：错题本列出错题", (await page.locator("#wrongList .wrong-row").count()) >= 1);
+    check("答题卡：统计由本地接口填充",
+      (await page.textContent("#cardAnswered")).trim() !== "" && (await page.textContent("#cardAttempts")).trim() !== "",
+      `已答 ${(await page.textContent("#cardAnswered")).trim()} / 累计 ${(await page.textContent("#cardAttempts")).trim()}`);
+
+    await page.click("#openSelectionBtn");
+    await page.waitForSelector("#selectionPanel:not(.hidden)", { timeout: 8000 });
+    check("选题面板可打开", true);
+    check("选题面板默认渲染 50 条", (await page.locator("#selectionList .sel-row").count()) === 50);
+    await page.click('.chip:has-text("多选题")');
+    await page.waitForTimeout(400);
+    check("题型筛选「多选题」正确",
+      await page.evaluate(() => Array.from(document.querySelectorAll("#selectionList .sel-row .badge")).every((b) => b.textContent === "多")));
+    await page.click('.chip:has-text("全部")');
     await page.waitForTimeout(300);
-    const rows = await page.locator(".wrong-row").count();
-    check("错题本记录错题", rows >= 1, `${rows} 行`);
-    await page.screenshot({ path: path.join(SHOT_DIR, "03-安卓版-错题本.png") });
+    await page.fill("#selectionKeyword", "追溯");
+    await page.waitForTimeout(500);
+    const kwRows = await page.locator("#selectionList .sel-row").count();
+    check("关键词筛选生效", kwRows > 0 && kwRows < 50, `命中 ${kwRows} 行`);
+    await page.fill("#selectionKeyword", "");
+    await page.waitForTimeout(500);
 
-    /* 5. 统计 */
-    await page.click('#wrongBook button:has-text("返回菜单")');
-    await page.click('button:has-text("查看统计")');
-    await page.waitForTimeout(300);
-    const statsText = await page.textContent("#statsContent");
-    check("统计页显示正确率与题型分项",
-      statsText.indexOf("最近一次正确率") >= 0 && statsText.indexOf("单选题") >= 0,
-      statsText.replace(/\s+/g, " ").slice(0, 60));
-    await page.screenshot({ path: path.join(SHOT_DIR, "04-安卓版-统计页.png") });
+    const pickedIds = [];
+    for (let i = 0; i < 3; i++) {
+      pickedIds.push(Number((await page.locator("#selectionList .sel-row .sel-no").nth(i).textContent()).trim()));
+      await page.click(`#selectionList .sel-row >> nth=${i}`);
+      await page.waitForTimeout(120);
+    }
+    check("可勾选多题（无互斥限制）", (await page.textContent("#selectionCount")).indexOf("已选 3 题") >= 0);
+    await page.screenshot({ path: path.join(SHOT_DIR, "03-安卓版-选题面板.png") });
 
-    /* 6. 刷新后进度保留（App 内同样是本地存储） */
-    const before = await page.evaluate(() => Object.keys(appData.records).length);
-    await page.reload({ waitUntil: "load" });
-    const after = await page.evaluate(() => Object.keys(appData.records).length);
-    check("刷新后进度保留", before > 0 && before === after, `刷新前 ${before} 条 / 刷新后 ${after} 条`);
+    await page.click("#selStartBtn");
+    await page.waitForURL(/practice\.html\?mode=custom&ids=/, { timeout: 8000 });
+    await page.waitForSelector("#questionText:not(:empty)", { timeout: 8000 });
+    const firstNo = await page.evaluate(() => Number(document.getElementById("questionNo").textContent.replace(/\D/g, "")));
+    check("自定义练习按勾选顺序出题", firstNo === pickedIds[0], `首题 ${firstNo}，勾选 ${pickedIds.join(",")}`);
+    check("自定义练习进度显示 3 题", (await page.textContent("#quizProgress")).indexOf("/ 3 题") > 0,
+      (await page.textContent("#quizProgress")).trim());
 
-    /* 7. 手机尺寸无横向溢出 */
+    /* --- 6. 法条浏览 --- */
+    await page.goto(BASE + "answer_card.html", { waitUntil: "load" });
+    await page.click("#openLawBtn");
+    await page.waitForSelector("#lawList:not(.hidden)", { timeout: 8000 });
+    check("法条浏览：列出法条", (await page.locator("#lawList .law-row").count()) >= 1);
+    await page.click("#lawList .law-title-btn >> nth=0");
+    await page.waitForTimeout(600);
+    const law = await page.evaluate(() => {
+      const el = document.querySelector("#lawList .law-text");
+      return { shown: el && !el.classList.contains("hidden"), len: el ? el.textContent.trim().length : 0 };
+    });
+    check("法条浏览：可展开条文原文", law.shown && law.len > 20, `条文 ${law.len} 字`);
+    await page.screenshot({ path: path.join(SHOT_DIR, "04-安卓版-法条浏览.png") });
+    await page.click("#lawList .law-actions button >> nth=0");
+    await page.waitForURL(/practice\.html\?mode=custom&ids=/, { timeout: 8000 });
+    check("法条浏览：可练习该法条下的题", true);
+
+    /* --- 7. 设置页 --- */
+    await page.goto(BASE + "settings.html", { waitUntil: "load" });
+    await page.check("#setDark");
+    await page.click("#saveSettingsBtn");
+    await page.waitForTimeout(600);
+    check("设置保存后夜间模式生效", await page.evaluate(() => document.body.classList.contains("theme-dark")));
+    check("设置页提供「重置为内置题库」入口", (await page.locator("#resetBankBtn").count()) === 1);
+    check("设置页不再有「重新导入题库」", (await page.locator("#reimportBtn").count()) === 0);
+    await page.uncheck("#setDark");
+    await page.click("#saveSettingsBtn");
+    await page.waitForTimeout(400);
+
+    /* --- 8. 刷新后进度保留（App 私有存储） --- */
+    const before = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("drug_quiz_data") || "{}")).length);
+    await page.goto(BASE + "index.html", { waitUntil: "load" });
+    await page.waitForFunction(() => document.getElementById("statAnswered") && document.getElementById("statAnswered").textContent.trim() !== "");
+    const after = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("drug_quiz_data") || "{}")).length);
+    check("进度持久化正常", before > 0 && before === after, `记录 ${before} 条`);
+
+    /* --- 9. 手机尺寸无横向溢出 --- */
     const ov = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
     check("手机尺寸无横向溢出", ov.sw <= ov.cw + 1, `${ov.sw} / ${ov.cw}`);
 
-    /* 8. 控制台干净度 */
+    /* --- 10. 控制台干净度 --- */
     check("无 JS 报错", pageErrors.length === 0, pageErrors.slice(0, 2).join("；"));
     check("无控制台错误", consoleErrors.length === 0, consoleErrors.slice(0, 2).join("；"));
   } finally {

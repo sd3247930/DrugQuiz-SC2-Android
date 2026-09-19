@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% set active = 'card' %}
+{% block subtitle %} · 错题本 / 答题卡{% endblock %}
+
+{% block content %}
+<div id="wrongBook">
+  <div class="stat-grid">
+    <div class="stat-item"><div class="stat-label">已答题数</div><div class="stat-value" id="cardAnswered">{{ stats.answered }}</div></div>
+    <div class="stat-item"><div class="stat-label">最近一次正确率</div>
+      <div class="stat-value" id="cardAccuracy">{% if stats.accuracy is none %}—{% else %}{{ stats.accuracy }}%{% endif %}</div></div>
+    <div class="stat-item"><div class="stat-label">错题数</div><div class="stat-value" id="wrongTotal">{{ stats.wrong }}</div></div>
+    <div class="stat-item"><div class="stat-label">累计作答次数</div><div class="stat-value" id="cardAttempts">{{ stats.attempts }}</div></div>
+  </div>
+
+  <div class="progress" id="wrongBookProgress"></div>
+  <div id="wrongList"></div>
+
+  <div class="stat-section">自由选题（按题型 / 状态 / 关键词挑题练习）</div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="openSelectionBtn" type="button">选题练习</button>
+  </div>
+
+  <div class="stat-section">法条浏览（按法条查看条文，并直接练该法条下的题）</div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="openLawBtn" type="button">浏览法条</button>
+  </div>
+  <div id="lawList" class="hidden"></div>
+
+  <div class="btn-row">
+    <a class="btn btn-secondary" href="{{ url_for('index') }}">返回首页</a>
+    <a class="btn btn-primary" href="{{ url_for('practice', mode='wrong') }}">开始错题重练</a>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="clearWrongBtn" type="button">清空错题本</button>
+    <button class="btn btn-secondary" id="exportWrongBtn" type="button">导出错题</button>
+  </div>
+  <div class="hint">提示：在错题练习中把这题答对，会自动移出错题本。</div>
+</div>
+
+<!-- 选题面板：全屏弹层（D1） -->
+<div class="sheet hidden" id="selectionPanel">
+  <div class="sheet-header">
+    <span class="sheet-title">选题练习</span>
+    <button class="sheet-close" id="closeSelectionBtn" type="button">✕</button>
+  </div>
+  <div class="sheet-filters" id="selectionFilters"></div>
+  <div class="sheet-list" id="selectionList"></div>
+  <div class="sheet-footer">
+    <span class="sheet-count" id="selectionCount">已选 0 题</span>
+    <div class="sheet-actions">
+      <button type="button" id="selAllBtn">全选筛选结果</button>
+      <button type="button" id="selInvertBtn">反选</button>
+      <button type="button" id="selClearBtn">清空</button>
+      <button type="button" class="btn-primary" id="selStartBtn">开始练习</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>window.PAGE = 'card';</script>
+<script src="{{ url_for('static', filename='selection.js') }}"></script>
+<script src="{{ url_for('static', filename='law.js') }}"></script>
+{% endblock %}

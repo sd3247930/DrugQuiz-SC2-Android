@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set active = mode if mode in ['seq', 'random', 'wrong'] else 'card' %}
+{% block subtitle %} · {{ {'seq': '顺序练习', 'random': '随机练习', 'wrong': '错题练习', 'custom': '自定义选题练习'}[mode] }}{% endblock %}
+
+{% block content %}
+<div id="quiz" data-mode="{{ mode }}" data-back="{{ '1' if settings.back_mode else '0' }}">
+  <div class="progress" id="quizProgress">正在加载题目…</div>
+  <div class="q-head">
+    <span class="type-tag" id="questionType"></span>
+    <span class="q-no" id="questionNo"></span>
+  </div>
+  <div class="question" id="questionText"></div>
+
+  <div class="mode-row">
+    <span class="mode-label">背题模式：直接显示答案与解析，不判题</span>
+    <button class="switch" id="backModeBtn" type="button">关</button>
+  </div>
+
+  <div id="options"></div>
+  <div class="result hidden" id="resultBox"></div>
+
+  <div class="explain hidden" id="explainBox">
+    <div class="explain-section">
+      <div class="explain-title">解析</div>
+      <div class="explain-text" id="explainText"></div>
+    </div>
+    <div class="explain-section">
+      <div class="explain-title" id="lawTitle">法条依据</div>
+      <div class="explain-text" id="lawText"></div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="prevBtn" type="button">上一题</button>
+    <button class="btn btn-primary" id="submitBtn" type="button">提交答案</button>
+    <button class="btn btn-primary hidden" id="nextBtn" type="button">下一题</button>
+  </div>
+  <div class="hint" id="emptyHint"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>window.PAGE = 'practice';</script>
+{% endblock %}

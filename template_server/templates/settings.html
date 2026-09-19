@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% set active = 'settings' %}
+{% block subtitle %} · 设置{% endblock %}
+
+{% block content %}
+<div id="settings">
+  <div class="stat-section">练习设置</div>
+
+  <label class="field">
+    <span class="field-label">背题模式（进入练习即显示答案与解析）</span>
+    <input type="checkbox" id="setBackMode" {% if settings.back_mode %}checked{% endif %}>
+  </label>
+
+  <label class="field">
+    <span class="field-label">夜间模式</span>
+    <input type="checkbox" id="setDark" {% if settings.dark_mode %}checked{% endif %}>
+  </label>
+
+  <label class="field">
+    <span class="field-label">字号</span>
+    <select id="setFont">
+      <option value="normal" {% if settings.font_size == 'normal' %}selected{% endif %}>标准</option>
+      <option value="large" {% if settings.font_size == 'large' %}selected{% endif %}>大</option>
+      <option value="xlarge" {% if settings.font_size == 'xlarge' %}selected{% endif %}>特大</option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span class="field-label">答对后自动下一题</span>
+    <input type="checkbox" id="setAutoNext" {% if settings.auto_next %}checked{% endif %}>
+  </label>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="saveSettingsBtn" type="button">保存设置</button>
+  </div>
+
+  <div class="stat-section">题库管理</div>
+  <div class="hint">
+    重新导入会扫描项目里的题库源文件（<code>private/单选题</code>、<code>private/多选题</code>），
+    重新生成 <code>data/questions.json</code>。当前题库 <span id="bankTotal">{{ stats.total }}</span> 题。
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="reimportBtn" type="button">重新导入题库</button>
+  </div>
+  <div class="hint" id="reimportResult"></div>
+
+  <div class="stat-section">清空记录</div>
+  <div class="hint">将清除全部作答进度、错题本与收藏，无法撤销。</div>
+  <div class="btn-row">
+    <button class="btn btn-danger" id="clearAllBtn" type="button">清空所有记录</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>window.PAGE = 'settings';</script>
+{% endblock %}

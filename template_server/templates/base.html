@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a5fb4">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<meta name="description" content="药品管理相关法规知识竞赛试题库（生产二部专用）——服务端版，支持顺序/随机/错题练习、解析与法条、统计与错题本。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a5fb4'/%3E%3Cpath d='M28 14h8v14h14v8H36v14h-8V36H14v-8h14z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<title>{% block title %}药品管理相关法规知识竞赛试题库（生产二部专用）{% endblock %}</title>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <h1>药品管理相关法规知识竞赛试题库（生产二部专用）</h1>
+    <div class="subtitle">生产二部 · 法规知识竞赛刷题{% block subtitle %}{% endblock %}</div>
+  </header>
+
+  <nav class="nav">
+    <a href="{{ url_for('index') }}" class="{% if active == 'home' %}active{% endif %}">首页</a>
+    <a href="{{ url_for('practice', mode='seq') }}" class="{% if active == 'seq' %}active{% endif %}">顺序练习</a>
+    <a href="{{ url_for('practice', mode='random') }}" class="{% if active == 'random' %}active{% endif %}">随机练习</a>
+    <a href="{{ url_for('practice', mode='wrong') }}" class="{% if active == 'wrong' %}active{% endif %}">错题练习</a>
+    <a href="{{ url_for('answer_card') }}" class="{% if active == 'card' %}active{% endif %}">答题卡</a>
+    <a href="{{ url_for('settings_page') }}" class="{% if active == 'settings' %}active{% endif %}">设置</a>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  <footer class="footer">
+    练习进度与错题本保存在运行本服务的电脑上（<code>data/</code> 目录），不上传任何外部服务器。
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+{% block script %}{% endblock %}
+</body>
+</html>

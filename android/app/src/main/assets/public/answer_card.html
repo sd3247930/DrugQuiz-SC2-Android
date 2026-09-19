@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a5fb4">
+<meta name="csrf-token" content="">
+<meta name="description" content="药品管理相关法规知识竞赛试题库（生产二部专用）——服务端版，支持顺序/随机/错题练习、解析与法条、统计与错题本。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a5fb4'/%3E%3Cpath d='M28 14h8v14h14v8H36v14h-8V36H14v-8h14z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<title>药品管理相关法规知识竞赛试题库（生产二部专用）</title>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <h1>药品管理相关法规知识竞赛试题库（生产二部专用）</h1>
+    <div class="subtitle">生产二部 · 法规知识竞赛刷题 · 错题本 / 答题卡</div>
+  </header>
+
+  <nav class="nav">
+    <a href="index.html" class="">首页</a>
+    <a href="practice.html?mode=seq" class="">顺序练习</a>
+    <a href="practice.html?mode=random" class="">随机练习</a>
+    <a href="practice.html?mode=wrong" class="">错题练习</a>
+    <a href="answer_card.html" class="active">答题卡</a>
+    <a href="settings.html" class="">设置</a>
+  </nav>
+
+  
+<div id="wrongBook">
+  <div class="stat-grid">
+    <div class="stat-item"><div class="stat-label">已答题数</div><div class="stat-value" id="cardAnswered"></div></div>
+    <div class="stat-item"><div class="stat-label">最近一次正确率</div>
+      <div class="stat-value" id="cardAccuracy"></div></div>
+    <div class="stat-item"><div class="stat-label">错题数</div><div class="stat-value" id="wrongTotal"></div></div>
+    <div class="stat-item"><div class="stat-label">累计作答次数</div><div class="stat-value" id="cardAttempts"></div></div>
+  </div>
+
+  <div class="progress" id="wrongBookProgress"></div>
+  <div id="wrongList"></div>
+
+  <div class="stat-section">自由选题（按题型 / 状态 / 关键词挑题练习）</div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="openSelectionBtn" type="button">选题练习</button>
+  </div>
+
+  <div class="stat-section">法条浏览（按法条查看条文，并直接练该法条下的题）</div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="openLawBtn" type="button">浏览法条</button>
+  </div>
+  <div id="lawList" class="hidden"></div>
+
+  <div class="btn-row">
+    <a class="btn btn-secondary" href="index.html">返回首页</a>
+    <a class="btn btn-primary" href="practice.html?mode=wrong">开始错题重练</a>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="clearWrongBtn" type="button">清空错题本</button>
+    <button class="btn btn-secondary" id="exportWrongBtn" type="button">导出错题</button>
+  </div>
+  <div class="hint">提示：在错题练习中把这题答对，会自动移出错题本。</div>
+</div>
+
+<!-- 选题面板：全屏弹层（D1） -->
+<div class="sheet hidden" id="selectionPanel">
+  <div class="sheet-header">
+    <span class="sheet-title">选题练习</span>
+    <button class="sheet-close" id="closeSelectionBtn" type="button">✕</button>
+  </div>
+  <div class="sheet-filters" id="selectionFilters"></div>
+  <div class="sheet-list" id="selectionList"></div>
+  <div class="sheet-footer">
+    <span class="sheet-count" id="selectionCount">已选 0 题</span>
+    <div class="sheet-actions">
+      <button type="button" id="selAllBtn">全选筛选结果</button>
+      <button type="button" id="selInvertBtn">反选</button>
+      <button type="button" id="selClearBtn">清空</button>
+      <button type="button" class="btn-primary" id="selStartBtn">开始练习</button>
+    </div>
+  </div>
+</div>
+
+
+  <footer class="footer">
+    练习进度、错题本、收藏与笔记保存在本机（App 私有存储），不上传任何外部服务器。
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="data-offline.js"></script>
+<script src="local-api.js"></script>
+<script src="script.js"></script>
+
+<script>window.PAGE = 'card';</script>
+<script src="selection.js"></script>
+<script src="law.js"></script>
+
+<script src="page-init.js"></script>
+</body>
+</html>

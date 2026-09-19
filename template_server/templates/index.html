@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set active = 'home' %}
+
+{% block content %}
+<div id="menu">
+  <div class="progress" id="menuProgress">
+    当前进度：已作答 {{ stats.answered }} 题 / 共 {{ stats.total }} 题
+  </div>
+  <div class="summary" id="menuSummary">
+    错题 {{ stats.wrong }} 题 · 最近一次正确率
+    {% if stats.accuracy is none %}—{% else %}{{ stats.accuracy }}%{% endif %}
+    · 累计作答 {{ stats.attempts }} 次
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-item"><div class="stat-label">题库总题数</div><div class="stat-value" id="statTotal">{{ stats.total }}</div></div>
+    <div class="stat-item"><div class="stat-label">已答题数</div><div class="stat-value" id="statAnswered">{{ stats.answered }}</div></div>
+    <div class="stat-item"><div class="stat-label">最近一次正确率</div>
+      <div class="stat-value" id="statAccuracy">{% if stats.accuracy is none %}—{% else %}{{ stats.accuracy }}%{% endif %}</div></div>
+    <div class="stat-item"><div class="stat-label">错题数</div><div class="stat-value" id="statWrong">{{ stats.wrong }}</div></div>
+    <div class="stat-item"><div class="stat-label">累计作答次数</div><div class="stat-value" id="statAttempts">{{ stats.attempts }}</div></div>
+    <div class="stat-item"><div class="stat-label">尚未作答</div><div class="stat-value" id="statUnanswered">{{ stats.unanswered }}</div></div>
+  </div>
+
+  <div class="stat-section">练习入口</div>
+  <a class="menu-btn" href="{{ url_for('practice', mode='seq') }}">顺序做全部 <span id="entryTotal">{{ stats.total }}</span> 题</a>
+  <a class="menu-btn" href="{{ url_for('practice', mode='random') }}">随机练习（打乱题目顺序）</a>
+  <a class="menu-btn" href="{{ url_for('practice', mode='wrong') }}">错题练习（只做错题）</a>
+  <a class="menu-btn gray" href="{{ url_for('answer_card') }}">查看错题本 / 答题卡</a>
+  <a class="menu-btn gray" href="{{ url_for('settings_page') }}">查看设置</a>
+
+  <div class="stat-section">从旧版（单文件版）导入进度</div>
+  <p class="hint">
+    如果你之前用过「双击 index.html」的单文件版，浏览器里可能还存着进度。
+    点下面的按钮可以把那台浏览器里的进度导入到本服务（同一台电脑、同一浏览器才有效）。
+  </p>
+  <button class="menu-btn gray" id="importOldBtn" type="button">导入旧版进度</button>
+  <div class="hint" id="importOldResult"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>window.PAGE = 'home';</script>
+{% endblock %}
