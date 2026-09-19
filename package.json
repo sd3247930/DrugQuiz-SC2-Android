@@ -1,0 +1,20 @@
+{
+  "name": "drug-quiz-android",
+  "version": "1.0.0",
+  "description": "药品管理相关法规知识竞赛试题库（生产二部专用）- Android 离线版",
+  "private": true,
+  "scripts": {
+    "gen:www": "python build_www.py",
+    "gen:data": "python generate_offline.py",
+    "sync": "npm run gen:data && npm run gen:www && npx cap sync android",
+    "build": "npm run sync && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "typescript": "^7.0.2"
+  }
+}

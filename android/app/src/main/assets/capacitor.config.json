@@ -1,0 +1,8 @@
+{
+	"appId": "com.drugquiz.sc2",
+	"appName": "药品法规刷题",
+	"webDir": "www",
+	"server": {
+		"androidScheme": "https"
+	}
+}

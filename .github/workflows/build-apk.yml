@@ -1,0 +1,101 @@
+name: Build DrugQuiz APK
+
+# 触发方式：手动触发（推荐）或推送到 main 分支
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Capacitor 8 CLI 要求 Node >= 22
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      # Capacitor 8 / AGP 生成工程要求 Java 21
+      - name: Setup JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required SDK components
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
+          ls "$ANDROID_HOME/platforms/"
+          ls "$ANDROID_HOME/build-tools/"
+
+      - name: Install dependencies
+        run: npm install
+
+      # 生成离线题库 + 拆分网页资源
+      - name: Generate offline data & web assets
+        run: |
+          python generate_offline.py
+          python build_www.py
+          ls -lh www/
+
+      - name: Capacitor sync
+        run: npx cap sync android
+
+      # 关键校验：防止题库丢失/资源未同步导致装出来的 App 是空壳
+      - name: Verify bundled question bank
+        run: |
+          test -f android/app/src/main/assets/public/data-offline.js
+          grep -q "window.__QUESTION_BANK__" android/app/src/main/assets/public/data-offline.js
+          COUNT=$(grep -o '"type":"' android/app/src/main/assets/public/data-offline.js | wc -l)
+          SINGLE=$(grep -o '"type":"单选"' android/app/src/main/assets/public/data-offline.js | wc -l)
+          MULTI=$(grep -o '"type":"多选"' android/app/src/main/assets/public/data-offline.js | wc -l)
+          echo "题库条数：$COUNT（单选 $SINGLE / 多选 $MULTI）"
+          test "$COUNT" -ge 300 || { echo "❌ 题库题目数少于 300，疑似生成失败"; exit 1; }
+          test "$SINGLE" -eq 190 || { echo "❌ 单选题数应为 190，实际 $SINGLE"; exit 1; }
+          test "$MULTI" -eq 110 || { echo "❌ 多选题数应为 110，实际 $MULTI"; exit 1; }
+          grep -q '"explanation":' android/app/src/main/assets/public/data-offline.js || { echo "❌ 缺少解析字段"; exit 1; }
+          grep -q '"law":' android/app/src/main/assets/public/data-offline.js || { echo "❌ 缺少法条字段"; exit 1; }
+          diff android/app/src/main/assets/public/index.html www/index.html >/dev/null || { echo "❌ index.html 与 www 不一致，需重新 cap sync"; exit 1; }
+          test -f android/app/src/main/assets/public/app.js
+          test -f android/app/src/main/assets/public/style.css
+          echo "✅ 离线题库与网页资源完整"
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+          cd ..
+
+      - name: Prepare APK
+        run: |
+          mkdir -p artifacts
+          cp android/app/build/outputs/apk/debug/app-debug.apk "artifacts/DrugQuiz-SC2.apk"
+          ls -lh "artifacts/DrugQuiz-SC2.apk"
+          sha256sum "artifacts/DrugQuiz-SC2.apk" > "artifacts/DrugQuiz-SC2.apk.sha256"
+          cat "artifacts/DrugQuiz-SC2.apk.sha256"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: DrugQuiz-APK
+          path: |
+            artifacts/DrugQuiz-SC2.apk
+            artifacts/DrugQuiz-SC2.apk.sha256
+          if-no-files-found: error

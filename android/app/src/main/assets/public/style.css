@@ -1,0 +1,125 @@
+/* 由 build_www.py 从 tools/index.template.html 抽取，请勿手改 */
+/* ============================================================
+   CSS 区：页面样式
+   - 视觉风格沿用早期原型：蓝色主色 #1a5fb4、白色卡片、圆角
+   - 手机适配：按钮最小高度 48px，正文字号 16px（不小于 14px）
+   ============================================================ */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    background: #f0f4f8;
+    margin: 0;
+    padding: 16px;
+    color: #222;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .app {
+    max-width: 760px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    padding: 20px;
+  }
+  h1 { font-size: 19px; line-height: 1.4; text-align: center; color: #1a5fb4; margin: 4px 0; }
+  .subtitle { text-align: center; color: #8a94a6; font-size: 13px; margin-bottom: 18px; }
+
+  /* 进度提示文字 */
+  .progress { font-size: 14px; color: #5b6472; text-align: center; margin: 0 0 10px; }
+  .summary { font-size: 14px; color: #5b6472; text-align: center; margin: 0 0 16px; }
+
+  /* 主菜单按钮 */
+  .menu-btn {
+    display: block; width: 100%; min-height: 48px; padding: 12px 14px; margin: 10px 0;
+    font-size: 16px; font-family: inherit; border: none; border-radius: 8px;
+    background: #1a5fb4; color: #fff; cursor: pointer; transition: background .15s;
+  }
+  .menu-btn:hover { background: #154a8a; }
+  .menu-btn:active { transform: scale(0.995); }
+  .menu-btn.gray { background: #5c6672; }
+  .menu-btn.gray:hover { background: #4a535e; }
+  .menu-btn.red { background: #c0392b; }
+  .menu-btn.red:hover { background: #992d22; }
+
+  /* 答题页 */
+  .q-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 2px; }
+  .type-tag { display: inline-block; background: #e8f0fe; color: #1a5fb4; font-size: 13px; padding: 3px 10px; border-radius: 6px; }
+  .q-no { font-size: 13px; color: #8a94a6; }
+  .question { font-size: 17px; line-height: 1.6; margin: 10px 0 12px; font-weight: 600; }
+
+  /* 背题模式开关 */
+  .mode-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 10px; }
+  .mode-label { font-size: 13px; color: #8a94a6; flex: 1 1 auto; }
+  .switch {
+    flex: 0 0 auto; min-height: 44px; padding: 0 16px; font-size: 14px; font-family: inherit;
+    border: 1px solid #cfd8e3; border-radius: 8px; background: #f4f6f9; color: #33415c; cursor: pointer;
+  }
+  .switch.on { background: #1a5fb4; border-color: #1a5fb4; color: #fff; }
+  .option {
+    display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; margin: 8px 0;
+    border: 2px solid #d0d7de; border-radius: 8px; background: #fafbfc;
+    cursor: pointer; font-size: 15px; line-height: 1.5;
+  }
+  .option:hover { border-color: #1a5fb4; background: #f0f6ff; }
+  .option input { width: 18px; height: 18px; margin: 3px 0 0; flex: 0 0 auto; }
+  .option.selected { border-color: #1a5fb4; background: #dceafd; }
+  .option.correct { border-color: #2e7d32; background: #e6f4ea; }
+  .option.wrong { border-color: #c0392b; background: #fdecea; }
+  .option.disabled { cursor: default; }
+
+  /* 按钮行 */
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+  .btn-row button { flex: 1; min-height: 48px; font-size: 16px; font-family: inherit; border: none; border-radius: 8px; cursor: pointer; }
+  .btn-primary { background: #1a5fb4; color: #fff; }
+  .btn-primary:hover { background: #154a8a; }
+  .btn-secondary { background: #e9ecef; color: #333; }
+  .btn-secondary:hover { background: #dde2e6; }
+  .btn-secondary.small { flex: 0 0 auto; min-height: 40px; padding: 0 16px; font-size: 14px; margin-top: 10px; }
+
+  /* 答题结果提示 */
+  .result { margin-top: 14px; padding: 12px 14px; border-radius: 8px; font-size: 15px; line-height: 1.6; }
+  .result.ok { background: #e6f4ea; color: #256b29; }
+  .result.bad { background: #fdecea; color: #b02a1f; }
+
+  /* 解析与法条依据 */
+  .explain { margin-top: 14px; border: 1px solid #e5eaf0; border-radius: 8px; background: #fbfcfe; padding: 12px 14px; }
+  .explain-section + .explain-section { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0; }
+  .explain-title { font-size: 14px; font-weight: 600; color: #1a5fb4; margin-bottom: 6px; }
+  .explain-text { font-size: 15px; line-height: 1.7; color: #333; white-space: pre-wrap; word-break: break-word; }
+
+  /* 错题本 */
+  .wrong-row { border: 1px solid #e5eaf0; border-radius: 8px; padding: 12px 14px; margin: 10px 0; background: #fcfdff; }
+  .wrong-title { font-size: 14px; color: #1a5fb4; font-weight: 600; }
+  .wrong-detail { font-size: 15px; line-height: 1.5; margin-top: 6px; color: #333; }
+  .wrong-meta { font-size: 13px; color: #8a94a6; margin-top: 8px; }
+
+  /* 统计 */
+  .stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stat-item { background: #f8f9fb; border: 1px solid #e5eaf0; border-radius: 8px; padding: 12px; }
+  .stat-label { font-size: 13px; color: #8a94a6; }
+  .stat-value { font-size: 20px; font-weight: 600; color: #1a5fb4; margin-top: 2px; }
+  .stat-section { margin-top: 18px; font-size: 15px; font-weight: 600; color: #333; }
+
+  .hint { font-size: 13px; color: #8a94a6; margin-top: 10px; }
+  .hidden { display: none !important; }
+  .footer { text-align: center; font-size: 12px; color: #9aa3af; margin-top: 18px; line-height: 1.6; }
+
+  /* 轻提示（例如"请先选择答案"） */
+  .toast {
+    position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%);
+    background: rgba(30, 35, 45, 0.92); color: #fff; padding: 10px 18px;
+    border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .25s;
+    pointer-events: none; z-index: 99; max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+
+  /* 手机适配 */
+  @media (max-width: 480px) {
+    body { padding: 10px; }
+    .app { padding: 14px; border-radius: 10px; }
+    h1 { font-size: 17px; }
+    .question { font-size: 16px; }
+    .stat-value { font-size: 18px; }
+  }
