@@ -26,6 +26,12 @@ android/captures/
 *.apk
 /apk/
 
+# 签名密钥（CI 由 Secrets 还原成 android/app/release.keystore，一律不入库）
+*.keystore
+*.jks
+android/app/release.keystore
+android/keystore.properties
+
 # Python
 __pycache__/
 *.pyc

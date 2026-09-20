@@ -7,8 +7,8 @@ android {
         applicationId "com.drugquiz.sc2"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
-        versionName "1.5.2"
+        versionCode 9
+        versionName "1.5.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +16,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    /* 正式签名：CI 通过 4 个环境变量注入；本地不设变量时自动退回 debug 签名（方便调试）
+       为什么要固定签名：debug 包每次 CI 都会重新生成密钥，签名不一致会导致「新版装不上旧版」，
+       用户必须先卸载（进度一起丢）。详见 android-signing/说明.md。 */
+    signingConfigs {
+        release {
+            def releaseStore = System.getenv("SIGNING_STORE_FILE")
+            if (releaseStore == null || releaseStore.trim().isEmpty()) {
+                releaseStore = "${System.properties['user.home']}/.android/debug.keystore"
+            }
+            storeFile file(releaseStore)
+            storePassword System.getenv("SIGNING_STORE_PASSWORD") ?: "android"
+            keyAlias System.getenv("SIGNING_KEY_ALIAS") ?: "androiddebugkey"
+            keyPassword System.getenv("SIGNING_KEY_PASSWORD") ?: "android"
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
 }
