@@ -139,6 +139,42 @@ async function main() {
     check("上一题按钮可用", (await page.textContent("#quizProgress")) !== progressBefore,
       `${progressBefore.trim()} → ${(await page.textContent("#quizProgress")).trim()}`);
 
+    /* --- 2.5 我的笔记（E4）：App 内走本地接口垫片的 /api/note --- */
+    const noteEntry = await page.evaluate(() => {
+      const box = document.getElementById("noteText");
+      const explain = document.getElementById("explainBox");
+      if (!box || !explain) return null;
+      return {
+        tag: box.tagName,
+        title: ((document.querySelector(".note-title") || {}).textContent || "").trim(),
+        afterExplain: !!(explain.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING)
+      };
+    });
+    check("练习页解析下方有「我的笔记」输入框（E4）",
+      !!noteEntry && noteEntry.afterExplain && noteEntry.tag === "TEXTAREA" && noteEntry.title === "我的笔记",
+      noteEntry ? `${noteEntry.title} / ${noteEntry.tag} / 位于解析下方 ${noteEntry.afterExplain}` : "未找到");
+
+    const noteQid = await page.evaluate(() => Number(document.getElementById("questionNo").textContent.replace(/\D/g, "")));
+    const noteAnsweredBefore = await page.evaluate(async () =>
+      (await (await fetch("/api/stats")).json()).answered);
+    const noteText = "App 笔记验收：" + Date.now();
+    await page.fill("#noteText", noteText);
+    await page.waitForTimeout(1100);
+    const noteSaved = await page.evaluate(async (qid) => {
+      const progress = ((await (await fetch("/api/progress/all")).json()).progress) || {};
+      return {
+        stored: (progress[String(qid)] || {}).note || "",
+        answered: (await (await fetch("/api/stats")).json()).answered
+      };
+    }, noteQid);
+    await page.goto(BASE + "practice.html?mode=seq&q=" + noteQid, { waitUntil: "load" });
+    await page.waitForSelector("#questionText:not(:empty)", { timeout: 8000 });
+    const noteBack = await page.evaluate(() => document.getElementById("noteText").value);
+    check("App 内笔记自动保存、重新进入该题能回显，且不计入已答题数",
+      noteSaved.stored === noteText && noteBack === noteText && noteSaved.answered === noteAnsweredBefore,
+      `本地接口存「${noteSaved.stored.slice(0, 12)}…」/ 回显「${noteBack.slice(0, 12)}…」`
+      + ` / 已答 ${noteAnsweredBefore} → ${noteSaved.answered}`);
+
     /* --- 3.5 查看法条（O2） --- */
     check("练习页显示「查看法条」按钮", (await page.locator("#lawTipBtn").count()) === 1);
     await page.click("#lawTipBtn");
@@ -253,6 +289,51 @@ async function main() {
     check("设置保存后夜间模式生效", await page.evaluate(() => document.body.classList.contains("theme-dark")));
     check("设置页提供「重置为内置题库」入口", (await page.locator("#resetBankBtn").count()) === 1);
     check("设置页不再有「重新导入题库」", (await page.locator("#reimportBtn").count()) === 0);
+    check("设置页提供「导出进度 / 导入进度」入口（从服务端版继承）",
+      (await page.locator("#exportProgressBtn").count()) === 1
+      && (await page.locator("#importProgressBtn").count()) === 1
+      && (await page.locator("#importProgressFile").count()) === 1);
+    /* App 壳（Capacitor WebView）不支持 a[download]，导出必须走剪贴板 / 只读文本框兜底 */
+    await page.click("#exportProgressBtn");
+    await page.waitForTimeout(600);
+    const appExport = await page.evaluate(() => {
+      const box = document.getElementById("progressExportText");
+      const status = ((document.getElementById("progressIOStatus") || {}).textContent || "").trim();
+      let parsed = null;
+      try { parsed = JSON.parse(box ? box.value : "null"); } catch (e) { parsed = null; }
+      return { hasBox: !!box, status, ok: !!(parsed && parsed.progress) };
+    });
+    check("App 内导出进度走剪贴板 / 文本框兜底（不依赖 a[download]）",
+      appExport.ok || appExport.status.indexOf("剪贴板") >= 0,
+      appExport.hasBox ? "已生成只读文本框（含 progress）" : appExport.status);
+
+    /* AV-2：部分 ROM 会禁用剪贴板，这时必须退到只读文本框 + 自动全选 */
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: function () { return Promise.reject(new Error("clipboard denied")); } }
+      });
+      const old = document.getElementById("progressExportText");
+      if (old) old.remove();
+      document.getElementById("progressIOStatus").textContent = "";
+    });
+    await page.click("#exportProgressBtn");
+    await page.waitForTimeout(600);
+    const fallback = await page.evaluate(() => {
+      const box = document.getElementById("progressExportText");
+      let parsed = null;
+      try { parsed = JSON.parse(box ? box.value : "null"); } catch (e) { parsed = null; }
+      return {
+        hasBox: !!box,
+        readonly: box ? box.readOnly : false,
+        ok: !!(parsed && parsed.progress),
+        selected: box ? (box.selectionEnd - box.selectionStart) : 0,
+        status: ((document.getElementById("progressIOStatus") || {}).textContent || "").trim()
+      };
+    });
+    check("App 内剪贴板不可用时退到只读文本框并自动全选（AV-2）",
+      fallback.hasBox && fallback.ok && fallback.readonly && fallback.selected > 0,
+      `文本框 ${fallback.hasBox ? "已生成" : "缺失"} / 只读 ${fallback.readonly} / 已选中 ${fallback.selected} 字符`);
     await page.uncheck("#setDark");
     await page.click("#saveSettingsBtn");
     await page.waitForTimeout(400);
