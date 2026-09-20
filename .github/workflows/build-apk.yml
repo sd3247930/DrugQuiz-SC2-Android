@@ -85,6 +85,16 @@ jobs:
             || { echo "❌ local-api.js 与 www 不一致，需重新 cap sync"; exit 1; }
           echo "✅ 离线题库与网页资源完整（4 页面 + 本地接口垫片）"
 
+      # 防回归：Capacitor 脚手架默认把自适应图标背景层写成 #FFFFFF，
+      # 一旦被重置，Android 8+ 的桌面图标四边会重新出现一圈白边。
+      - name: Verify launcher icon has no white background
+        run: |
+          grep -q '#0F5B78' android/app/src/main/res/values/ic_launcher_background.xml \
+            || { echo "❌ 自适应图标背景层不是品牌色（可能被脚手架重置成白色）"; exit 1; }
+          ! grep -qi '#FFFFFF' android/app/src/main/res/values/ic_launcher_background.xml \
+            || { echo "❌ 自适应图标背景层出现白色，会导致图标四周白边"; exit 1; }
+          echo "✅ 自适应图标背景层为品牌色 #0F5B78（无白色）"
+
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
         with:

@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  自适应图标（Android 8+ 桌面图标）的背景层。
+  Capacitor 脚手架生成时默认是 #FFFFFF（纯白），而前景 Logo 只占画布的 56%，
+  于是图标四周会露出一圈很宽的白色垫底 —— 看起来就是"蓝色渐变外圈的白边"。
+  这里改成品牌主色 #0F5B78（与 token --primary 一致）。
+  注意：`npx cap sync android` 不会覆盖已存在的 res 文件，但换机器重新 cap add 可能重置，
+  CI 里已加校验防止被悄悄改回白色。
+-->
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="ic_launcher_background">#0F5B78</color>
 </resources>
