@@ -318,9 +318,11 @@ body.theme-dark .sel-stem { color: #d8dee8; }
   width: 36px;
   height: 36px;
   border-radius: var(--radius-sm);
-  /* 不用白色圆角底座：在深青顶栏上会变成 Logo 外圈的一圈白边。
-     改透明底，让品牌 Logo 直接坐在顶栏上（首页/练习/答题卡/设置 四个页面共用这一条）。 */
+  /* 透明底 + 16% 白描边（与右侧「生产二部」胶囊同色），
+     既不像白底那样形成一圈实白边，又让 Logo 在深青顶栏上有清晰边界。
+     首页/练习/答题卡/设置 四个页面共用这一条规则。 */
   background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.16);
   overflow: hidden;
 }
 .app-bar-logo img { width: 30px; height: auto; display: block; }

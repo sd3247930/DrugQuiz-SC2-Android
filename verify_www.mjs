@@ -68,7 +68,10 @@ async function main() {
   if (!chromium) { console.error("❌ 未找到 Playwright"); process.exit(1); }
 
   const server = await startServer();
-  const browser = await chromium.launch({ channel: "msedge" });
+  /* 浏览器：默认用系统 Edge；若 Edge 安装损坏（例如更新后根目录 stub 报
+     "并行配置不正确"），可用环境变量 PW_EDGE_EXE 直接指向可用的 msedge.exe。 */
+  const browser = await chromium.launch(
+    process.env.PW_EDGE_EXE ? { executablePath: process.env.PW_EDGE_EXE } : { channel: "msedge" });
   const ctx = await browser.newContext({
     viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true
   });
