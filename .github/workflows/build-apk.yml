@@ -89,11 +89,16 @@ jobs:
       # 一旦被重置，Android 8+ 的桌面图标四边会重新出现一圈白边。
       - name: Verify launcher icon has no white background
         run: |
-          grep -q '#0F5B78' android/app/src/main/res/values/ic_launcher_background.xml \
-            || { echo "❌ 自适应图标背景层不是品牌色（可能被脚手架重置成白色）"; exit 1; }
-          ! grep -qi '#FFFFFF' android/app/src/main/res/values/ic_launcher_background.xml \
-            || { echo "❌ 自适应图标背景层出现白色，会导致图标四周白边"; exit 1; }
-          echo "✅ 自适应图标背景层为品牌色 #0F5B78（无白色）"
+          FILE=android/app/src/main/res/values/ic_launcher_background.xml
+          # 只取 <color> 的实际值，别把注释里提到的 #FFFFFF 也算进来
+          COLOR=$(grep -o '<color name="ic_launcher_background">[^<]*' "$FILE" | sed 's/.*>//')
+          NORM=$(echo "$COLOR" | tr 'a-z' 'A-Z' | tr -d ' ')
+          echo "自适应图标背景色：$COLOR"
+          case "$NORM" in
+            '#FFFFFF'|'#FFF'|'') echo "❌ 背景层为空或为白色（Capacitor 脚手架默认 #FFFFFF，会让图标四周出现白边）"; exit 1 ;;
+          esac
+          test "$NORM" = "#0F5B78" || { echo "❌ 背景层不是品牌色 #0F5B78（当前 $COLOR）"; exit 1; }
+          echo "✅ 自适应图标背景层为品牌色 $COLOR（无白色）"
 
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
