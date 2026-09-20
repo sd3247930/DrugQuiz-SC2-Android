@@ -149,7 +149,8 @@ body.theme-dark .wrong-detail { color: #d8dee8; }
 .footer code { font-size: 12px; }
 
 .toast {
-  position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%);
+  /* 提示条要落在 60px 底部导航栏上方，否则会挡住 tab 图标 */
+  position: fixed; left: 50%; bottom: calc(var(--tabbar-h, 60px) + 16px); transform: translateX(-50%);
   background: rgba(30, 35, 45, 0.92); color: #fff; padding: 10px 18px;
   border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .25s;
   pointer-events: none; z-index: 99; max-width: 90vw; text-align: center;
