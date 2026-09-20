@@ -44,6 +44,15 @@
   </div>
   <div class="hint" id="reimportResult"></div>
 
+  <div class="stat-section">进度备份（导出 / 导入）</div>
+  <div class="hint">导出会生成一个 JSON 文件（含作答进度与设置），可用于备份、换设备或换版本时迁移；导入时可以选择覆盖当前进度，或与当前进度合并。</div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="exportProgressBtn" type="button">导出进度</button>
+    <button class="btn btn-secondary" id="importProgressBtn" type="button">导入进度</button>
+  </div>
+  <input type="file" id="importProgressFile" accept="application/json,.json" class="hidden">
+  <div class="hint" id="progressIOStatus"></div>
+
   <div class="stat-section">清空记录</div>
   <div class="hint">将清除全部作答进度、错题本与收藏，无法撤销。</div>
   <div class="btn-row">

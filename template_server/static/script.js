@@ -15,6 +15,12 @@ const APP_PATHS = window.APP_PATHS || {
   custom: function (ids) { return "/practice/custom?ids=" + ids.join(","); }
 };
 
+/** 拼出「练习页 + 指定题号」的地址（服务端版 /practice/seq?q=7；App practice.html?mode=seq&q=7） */
+function questionUrl(mode, qid) {
+  const base = APP_PATHS.practice(mode);
+  return base + (base.indexOf("?") >= 0 ? "&" : "?") + "q=" + qid;
+}
+
 /* ---------------- 通用工具 ---------------- */
 function $(id) { return document.getElementById(id); }
 function show(el) { if (el) el.classList.remove("hidden"); }
@@ -59,13 +65,22 @@ async function applyAppearance() {
 }
 
 /* ---------------- 练习页 ---------------- */
-const session = { mode: "seq", list: [], index: 0, back: false, answered: false, selected: [] };
+const session = { mode: "seq", list: [], index: 0, back: false, answered: false, selected: [], records: {} };
 
 async function loadSession() {
   const box = $("quiz");
   session.mode = box.dataset.mode || "seq";
   session.back = box.dataset.back === "1";
   updateBackUI();
+
+  /* 答题卡矩阵跳题（?q=题号）：定位到指定题目，其余逻辑不变 */
+  const jumpTo = Number(new URLSearchParams(location.search).get("q") || 0);
+
+  /* 一次取回全部进度记录：顺序练习用来定位续做位置，「我的笔记」用来回显（E4） */
+  try {
+    const progress = await api("/api/progress/all");
+    session.records = progress.progress || {};
+  } catch (e) { session.records = {}; }
 
   let url = "/api/questions?mode=" + session.mode + "&start=1&count=500";
   if (session.mode === "custom") {
@@ -75,8 +90,7 @@ async function loadSession() {
     session.list = data.questions || [];
     session.index = 0;
   } else if (session.mode === "seq") {
-    const progress = await api("/api/progress/all");
-    const records = progress.progress || {};
+    const records = session.records;
     const all = await api(url);
     session.list = all.questions || [];
     // 断点续做：跳到第一道未作答的题
@@ -90,6 +104,11 @@ async function loadSession() {
     const data = await api(url);
     session.list = data.questions || [];
     session.index = 0;
+  }
+
+  if (jumpTo) {
+    const at = session.list.findIndex(function (q) { return q.index === jumpTo; });
+    if (at >= 0) session.index = at;
   }
 
   if (!session.list.length) {
@@ -112,6 +131,7 @@ function currentItem() { return session.list[session.index]; }
 async function renderQuestion() {
   const item = currentItem();
   if (!item) return;
+  await flushNote();          /* 切题前先把上一题的笔记落盘（E4） */
   session.answered = false;
   session.selected = [];
 
@@ -142,6 +162,7 @@ async function renderQuestion() {
     window.onQuestionRendered(item);
   }
 
+  renderNote();               /* 回显本题已有的笔记（E4） */
   window.scrollTo(0, 0);
 }
 
@@ -292,6 +313,60 @@ async function toggleBackMode() {
   if ($("quiz")) renderQuestion();
 }
 
+/* ---------------- 我的笔记（E4） ----------------
+   写在解析下方，输入停止 700ms 或离开输入框时自动保存；
+   存储走服务端的 /api/note，落在该题的进度记录 note 字段里（只写了笔记没作答不会计入已答题数）。 */
+const noteState = { qid: null, timer: null, dirty: false };
+
+/** 把当前题已有的笔记回显到输入框 */
+function renderNote() {
+  const box = $("noteText");
+  if (!box) return;
+  const item = currentItem();
+  if (!item) return;
+  const rec = session.records[String(item.index)] || {};
+  box.value = rec.note || "";
+  noteState.qid = item.index;
+  noteState.dirty = false;
+  if (noteState.timer) { clearTimeout(noteState.timer); noteState.timer = null; }
+  if ($("noteStatus")) $("noteStatus").textContent = "";
+}
+
+/** 输入后防抖，避免每敲一个字就发一次请求 */
+function scheduleNoteSave() {
+  noteState.dirty = true;
+  const status = $("noteStatus");
+  if (status) status.textContent = "正在输入…";
+  if (noteState.timer) clearTimeout(noteState.timer);
+  noteState.timer = setTimeout(flushNote, 700);
+}
+
+/** 真正落盘；切题前会先调用一次，保证没来得及防抖的内容也不丢 */
+async function flushNote() {
+  if (noteState.timer) { clearTimeout(noteState.timer); noteState.timer = null; }
+  if (!noteState.dirty || noteState.qid === null) return;
+  const qid = noteState.qid;
+  const box = $("noteText");
+  const text = (box ? box.value : "").slice(0, 2000);
+  const status = $("noteStatus");
+  try {
+    await api("/api/note", { method: "POST", body: { qid: qid, note: text } });
+    const rec = session.records[String(qid)] || (session.records[String(qid)] = {});
+    rec.note = text;
+    noteState.dirty = false;
+    if (status) status.textContent = text ? "笔记已保存（只存在本机）" : "笔记已清空";
+  } catch (err) {
+    if (status) status.textContent = "保存失败：" + err.message;
+  }
+}
+
+function initNote() {
+  const box = $("noteText");
+  if (!box) return;
+  box.addEventListener("input", scheduleNoteSave);
+  box.addEventListener("blur", flushNote);
+}
+
 /* ---------------- 首页 ---------------- */
 function initHome() {
   const btn = $("importOldBtn");
@@ -341,6 +416,7 @@ async function importOldProgress() {
 
 /* ---------------- 错题本 / 答题卡 ---------------- */
 async function initCard() {
+  renderMatrix();
   await renderWrongList();
   const clearBtn = $("clearWrongBtn");
   const exportBtn = $("exportWrongBtn");
@@ -402,6 +478,235 @@ async function renderWrongList() {
   });
 }
 
+/* ---------------- 进度导出 / 导入（E2：备份、换设备、跨版本迁移） ----------------
+   导出文件与「静态单文件版」通用：progress 一律以「1 起的题号」做键、统一字段名。
+   导入策略由用户当场选：确定 = 覆盖，取消 = 与当前进度合并（每题保留作答次数更多的记录）。 */
+const PROGRESS_FILE_VERSION = 1;
+
+/** 导出文件名：drugquiz-progress-YYYYMMDD.json */
+function progressFileName() {
+  const d = new Date();
+  const p = function (n) { return String(n).padStart(2, "0"); };
+  return "drugquiz-progress-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + ".json";
+}
+
+/** 触发浏览器下载一个 JSON 文件 */
+function downloadJson(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+/** 只保留结构合法的记录，避免坏文件把本地进度搞脏 */
+function sanitizeProgress(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object") return out;
+  Object.keys(raw).forEach(function (key) {
+    const qid = Number(key);
+    const rec = raw[key];
+    if (!isFinite(qid) || qid < 1 || !rec || typeof rec !== "object") return;
+    out[String(qid)] = {
+      answered: !!rec.answered,
+      correct: rec.correct === true,
+      selected: Array.isArray(rec.selected)
+        ? rec.selected.filter(function (x) { return typeof x === "string"; }) : [],
+      attempts: Math.max(0, Math.floor(Number(rec.attempts) || 0)),
+      wrong_count: Math.max(0, Math.floor(Number(rec.wrong_count) || 0)),
+      collected: !!rec.collected,
+      note: typeof rec.note === "string" ? rec.note : ""
+    };
+  });
+  return out;
+}
+
+/** 合并两份进度：每题保留作答次数更多的一条；错题次数与收藏取并集 */
+function mergeProgress(current, incoming) {
+  const out = {};
+  Object.keys(current).forEach(function (k) { out[k] = current[k]; });
+  Object.keys(incoming).forEach(function (k) {
+    const a = out[k], b = incoming[k];
+    if (!a) { out[k] = b; return; }
+    const newer = (b.attempts || 0) > (a.attempts || 0) ? b : a;
+    out[k] = {
+      answered: !!(a.answered || b.answered),
+      correct: !!newer.correct,
+      selected: newer.selected || [],
+      attempts: Math.max(a.attempts || 0, b.attempts || 0),
+      wrong_count: Math.max(a.wrong_count || 0, b.wrong_count || 0),
+      collected: !!(a.collected || b.collected),
+      note: a.note || b.note || ""
+    };
+  });
+  return out;
+}
+
+/** 导出进度 + 设置，返回导出内容（便于调用方提示条数） */
+async function exportProgress() {
+  const all = await api("/api/progress/all");
+  let settings = {};
+  try { settings = await api("/api/settings"); } catch (e) { /* 设置读不到不影响导出进度 */ }
+  const payload = {
+    version: PROGRESS_FILE_VERSION,
+    app: "DrugQuiz-SC2",
+    source: window.APP_PATHS ? "android" : "server",
+    exportedAt: new Date().toISOString(),
+    progress: all.progress || {},
+    settings: settings || {}
+  };
+  const how = await deliverExport(payload);
+  return { payload: payload, delivered: how, count: Object.keys(payload.progress).length };
+}
+
+/** 交付导出结果：网页端直接下载；App（Capacitor WebView）不支持 a[download]，改用剪贴板兜底 */
+async function deliverExport(payload) {
+  const text = JSON.stringify(payload, null, 2);
+  if (!window.APP_PATHS) {
+    downloadJson(payload, progressFileName());
+    return "download";
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    return "clipboard";
+  } catch (e) {
+    /* 剪贴板也不可用时，退到只读文本框，方便长按全选复制
+       （不用 window.prompt：Capacitor 的桥接会拦截 prompt） */
+    showExportText(text);
+    return "textarea";
+  }
+}
+
+/** 把导出的 JSON 放进只读文本框并全选 */
+function showExportText(text) {
+  const wrap = $("progressIOStatus");
+  if (!wrap) return;
+  let box = $("progressExportText");
+  if (!box) {
+    box = document.createElement("textarea");
+    box.id = "progressExportText";
+    box.readOnly = true;
+    box.rows = 6;
+    box.style.width = "100%";
+    box.style.fontSize = "12px";
+    box.style.marginTop = "8px";
+    wrap.parentNode.insertBefore(box, wrap.nextSibling);
+  }
+  box.value = text;
+  box.focus();
+  box.select();
+}
+
+/** 导入进度：确定 = 覆盖，取消 = 合并 */
+async function importProgress(text) {
+  const data = JSON.parse(text);
+  if (!data || typeof data !== "object" || !data.progress) {
+    throw new Error("文件格式不正确：缺少 progress 字段");
+  }
+  const incoming = sanitizeProgress(data.progress);
+  const count = Object.keys(incoming).length;
+  if (!count) throw new Error("文件里没有可导入的作答记录");
+
+  const overwrite = window.confirm(
+    "导入进度（共 " + count + " 题）：\n\n" +
+    "点「确定」= 用文件里的进度覆盖当前进度\n" +
+    "点「取消」= 与当前进度合并（每题保留作答次数更多的记录）"
+  );
+
+  let items = incoming;
+  if (overwrite) {
+    await api("/api/batch", { method: "POST", body: { action: "clear_all" } });
+  } else {
+    const cur = (await api("/api/progress/all")).progress || {};
+    items = mergeProgress(cur, incoming);
+  }
+  const res = await api("/api/progress", { method: "POST", body: { items: items } });
+  if (data.settings && typeof data.settings === "object") {
+    try { await api("/api/settings", { method: "POST", body: data.settings }); } catch (e) { /* 忽略 */ }
+  }
+  applyAppearance();
+  return { written: res.written, mode: overwrite ? "覆盖" : "合并" };
+}
+
+/* ---------------- 答题卡题号矩阵（设计稿 04 页 / 待办 P2=A） ---------------- */
+const MATRIX_BATCH = 100;   /* 分块渲染：每批 100 格，300 题也不会卡顿 */
+
+/** 单题状态：口径与后端 status_of() 保持一致 */
+function matrixStatus(rec) {
+  if (!rec) return "new";
+  if (rec.wrong_count) return "wrong";
+  if (rec.answered) return rec.correct ? "correct" : "wrong";
+  return "new";
+}
+
+/** 渲染 300 格题号矩阵：点击格子跳到对应题目（第 4 步） */
+async function renderMatrix() {
+  const box = $("answerMatrix");
+  if (!box) return;                       /* 不是答题卡页就直接返回 */
+  const hint = $("matrixHint");
+  let listData, progressData;
+  try {
+    listData = await api("/api/questions?mode=seq&page_size=500");
+    progressData = await api("/api/progress/all");
+  } catch (err) {
+    if (hint) hint.textContent = "题号矩阵加载失败：" + err.message;
+    return;
+  }
+
+  const records = (progressData && progressData.progress) || {};
+  const list = listData.questions || [];
+  box.textContent = "";
+
+  let cursor = 0, answered = 0, correct = 0, wrong = 0, collected = 0;
+
+  function renderBatch() {
+    const frag = document.createDocumentFragment();
+    const end = Math.min(cursor + MATRIX_BATCH, list.length);
+    for (; cursor < end; cursor++) {
+      const q = list[cursor];
+      const rec = records[String(q.index)];
+      const status = matrixStatus(rec);
+      if (rec && rec.answered) answered++;
+      if (status === "correct") correct++;
+      if (status === "wrong") wrong++;
+      if (q.collected) collected++;
+
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "matrix-cell" + (status === "new" ? "" : " " + status);
+      cell.dataset.qid = q.index;
+      cell.dataset.status = status;
+      cell.textContent = q.index;
+      cell.title = "题库第 " + q.index + " 题（"
+        + (status === "correct" ? "已答对" : status === "wrong" ? "做错过" : "未作答") + "）";
+      if (q.collected) {
+        const star = document.createElement("span");
+        star.className = "matrix-star";
+        star.textContent = "★";          /* 收藏只加角标，不改格子底色 */
+        cell.appendChild(star);
+      }
+      cell.addEventListener("click", function () {
+        window.location.href = questionUrl("seq", q.index);
+      });
+      frag.appendChild(cell);
+    }
+    box.appendChild(frag);
+
+    if (cursor < list.length) {
+      window.requestAnimationFrame(renderBatch);
+    } else if (hint) {
+      hint.textContent = "共 " + list.length + " 题 · 已答 " + answered + " · 答对 " + correct
+        + " · 答错 " + wrong + (collected ? " · 收藏 " + collected : "")
+        + "；点击题号跳到该题。";
+    }
+  }
+  renderBatch();
+}
+
 /* ---------------- 设置页 ---------------- */
 function initSettings() {
   const save = $("saveSettingsBtn");
@@ -445,6 +750,51 @@ function initSettings() {
       } catch (err) { toast(err.message); }
     });
   }
+
+  /* 进度导出 / 导入（E2） */
+  const exportBtn = $("exportProgressBtn");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", async function () {
+      const out = $("progressIOStatus");
+      try {
+        const res = await exportProgress();
+        let tip;
+        if (res.delivered === "download") {
+          tip = "已导出 " + res.count + " 条作答记录（含设置），请在下载目录查看。";
+        } else if (res.delivered === "clipboard") {
+          tip = "已复制 " + res.count + " 条作答记录到剪贴板（App 内无法直接保存文件，可粘贴到备忘录保存）。";
+        } else {
+          tip = "App 内无法直接保存文件，已把 " + res.count + " 条作答记录放到下面文本框，长按全选复制后自行保存。";
+        }
+        if (out) out.textContent = tip;
+        toast(res.delivered === "download" ? "进度已导出"
+          : (res.delivered === "clipboard" ? "进度已复制到剪贴板" : "进度已生成，请复制文本框内容"));
+      } catch (err) {
+        if (out) out.textContent = "导出失败：" + err.message;
+        toast(err.message);
+      }
+    });
+  }
+  const importBtn = $("importProgressBtn");
+  const importFile = $("importProgressFile");
+  if (importBtn && importFile) {
+    importBtn.addEventListener("click", function () { importFile.click(); });
+    importFile.addEventListener("change", async function () {
+      const file = importFile.files && importFile.files[0];
+      if (!file) return;
+      const out = $("progressIOStatus");
+      try {
+        const res = await importProgress(await file.text());
+        if (out) out.textContent = "已" + res.mode + "导入 " + res.written + " 条作答记录。";
+        toast("进度已导入（" + res.mode + "）");
+      } catch (err) {
+        if (out) out.textContent = "导入失败：" + err.message;
+        toast(err.message);
+      } finally {
+        importFile.value = "";       /* 允许重复选择同一个文件 */
+      }
+    });
+  }
 }
 
 /* ---------------- 入口 ---------------- */
@@ -457,6 +807,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const prev = $("prevBtn");
     if (prev) prev.addEventListener("click", prevQuestion);
     $("backModeBtn").addEventListener("click", toggleBackMode);
+    initNote();
     loadSession();
   } else if (page === "home") {
     initHome();
