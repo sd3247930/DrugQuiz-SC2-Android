@@ -21,7 +21,7 @@
 - 工程、离线数据、生成流程、CI 均已就绪，APK 可通过 GitHub Actions 一键产出；
 - 功能：随服务端版同步拿到了 **答题卡 5 列题号矩阵**、**进度导出/导入**、**我的笔记**（v1.5，见第 4.11 节）；
 - 验收：安卓版网页资源 **51/51** 通过；服务端版 pytest **47/47** + 浏览器 **55/55**；静态版 **75/75**（串行执行，零倒退）；
-- 已产出 APK：`com.drugquiz.sc2`，versionCode **6** / versionName **1.5**（含答题卡矩阵、进度导出导入、我的笔记与 Toast 修复）；
+- 已产出 APK：`com.drugquiz.sc2`，versionCode **7** / versionName **1.5.1**（含答题卡矩阵、进度导出导入、我的笔记、Toast 修复、桌面图标与顶栏 Logo 去白边）；
 - 本机沙箱无法运行 Gradle（原因见第 6.3 节），出包走 GitHub Actions 或在普通 Windows/Android Studio 构建。
 
 ---
