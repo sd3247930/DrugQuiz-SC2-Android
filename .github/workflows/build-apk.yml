@@ -100,6 +100,13 @@ jobs:
           test "$NORM" = "#0F5B78" || { echo "❌ 背景层不是品牌色 #0F5B78（当前 $COLOR）"; exit 1; }
           echo "✅ 自适应图标背景层为品牌色 $COLOR（无白色）"
 
+      # 防回归：状态栏图标必须是浅色，否则深色图标压在深青顶栏上会看不清
+      - name: Verify status bar icons are light
+        run: |
+          grep -q '<item name="android:windowLightStatusBar">false</item>' android/app/src/main/res/values/styles.xml \
+            || { echo "❌ AppTheme / AppTheme.NoActionBar 的 windowLightStatusBar 不是 false：状态栏图标会是深色，在深青顶栏上看不清"; exit 1; }
+          echo "✅ 状态栏图标为浅色（AppTheme / AppTheme.NoActionBar）"
+
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
         with:

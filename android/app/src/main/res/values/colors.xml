@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  覆盖 Capacitor 库里的默认配色（colorPrimary #3F51B5 靛蓝 / colorPrimaryDark #303F9F 深靛 /
+  colorAccent #FF4081 粉红）。这三个值会实际影响：
+    · Android 14 及以下的系统状态栏颜色（statusBarColor 取 colorPrimaryDark）——默认会是一条靛蓝，
+      与我们的深青顶栏（#0F5B78）明显断开；Android 15+ 因为是 edge-to-edge（targetSdk 36 强制），
+      状态栏透明、由网页顶栏铺色，不受此项影响。
+    · 系统控件强调色（如文本选择手柄）= colorAccent。
+  统一改成品牌主色，保证与 App 顶栏一致。
+-->
+<resources>
+    <color name="colorPrimary">#0F5B78</color>
+    <color name="colorPrimaryDark">#0B4459</color>
+    <color name="colorAccent">#0F5B78</color>
+</resources>

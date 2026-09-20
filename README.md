@@ -78,7 +78,7 @@ App 的网页资源由 `build_www.py` 从服务端版生成，所以服务端版
 ├─ template_server/          # 服务端版快照（同上用途）
 ├─ generate_offline.py       # 题库 → www/data-offline.js
 ├─ build_www.py              # 服务端版模板 + 脚本 → www/（含 Jinja 残留检查与孤儿文件清理）
-├─ verify_www.mjs            # 用真实浏览器验收 App 内网页（51 项）
+├─ verify_www.mjs            # 用真实浏览器验收 App 内网页（55 项）
 ├─ capacitor.config.ts       # Capacitor 配置（包名 / 应用名 / webDir）
 ├─ package.json              # Capacitor 依赖与构建脚本
 ├─ android/                  # Capacitor 生成的 Android 原生工程
@@ -97,7 +97,7 @@ npm install                    # 安装依赖（Capacitor 8）
 python generate_offline.py     # 重新生成离线题库
 python build_www.py            # 重新拆分网页资源
 npx cap sync android           # 同步到 Android 工程
-node verify_www.mjs            # 浏览器验收 App 内网页（51 项）
+node verify_www.mjs            # 浏览器验收 App 内网页（55 项）
 ```
 
 改题流程：在项目源目录重跑 `../tools/import-new-bank.py` → 把新的 `questions.json`

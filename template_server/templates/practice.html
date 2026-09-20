@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% set active = mode if mode in ['seq', 'random', 'wrong'] else 'card' %}
-{% block subtitle %} · {{ {'seq': '顺序练习', 'random': '随机练习', 'wrong': '错题练习', 'custom': '自定义选题练习'}[mode] }}{% endblock %}
+{% block subtitle %}Practice{% endblock %}
 
 {% block content %}
 <div id="quiz" data-mode="{{ mode }}" data-back="{{ '1' if settings.back_mode else '0' }}">

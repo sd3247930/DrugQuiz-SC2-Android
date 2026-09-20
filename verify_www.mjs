@@ -98,6 +98,14 @@ async function main() {
       (await page.textContent(".app-bar-chip")).indexOf("生产二部") >= 0);
     await page.screenshot({ path: path.join(SHOT_DIR, "01-安卓版-首页.png") });
 
+    /* --- 1.5 四个页面副标题（v1.5.1） --- */
+    for (const [p, expected] of [["index.html", "Home"], ["practice.html?mode=seq", "Practice"],
+                                 ["answer_card.html", "Answer Card"], ["settings.html", "Settings"]]) {
+      await page.goto(BASE + p, { waitUntil: "load" });
+      const txt = ((await page.textContent(".app-bar-sub")) || "").trim();
+      check(`副标题正确（${p} → ${expected}）`, txt === expected, `实际「${txt}」`);
+    }
+
     /* --- 2. 练习页：作答 → 解析与法条 --- */
     await page.goto(BASE + "practice.html?mode=seq", { waitUntil: "load" });
     await page.waitForSelector("#questionText:not(:empty)", { timeout: 8000 });

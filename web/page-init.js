@@ -48,14 +48,9 @@
     if ($("setFont")) $("setFont").value = s.font_size || "large";
   }
 
-  /** 练习页副标题（服务端由模板渲染） */
-  function fillSubtitle() {
-    const subtitle = document.querySelector(".subtitle");
-    if (!subtitle || !window.PAGE || window.PAGE !== "practice") return;
-    const mode = new URLSearchParams(location.search).get("mode") || "seq";
-    const label = { seq: "顺序练习", random: "随机练习", wrong: "错题练习", custom: "自定义选题练习" }[mode] || "练习";
-    subtitle.textContent = "生产二部 · 法规知识竞赛刷题 · " + label;
-  }
+  /* 说明：原先这里有个 fillSubtitle()，会把练习页副标题按练习模式改写成中文长句。
+     v1.5.1 起副标题改为固定英文标签（Home / Practice / Answer Card / Settings，由模板渲染），
+     该函数的目标选择器 .subtitle 也早已随 v2.6 顶栏改版失效（永远命中不到），因此整体删除。 */
 
   /** 练习页在顶部导航中高亮当前模式（服务端由模板决定，App 内按 URL 决定） */
   function fillNav() {
@@ -93,7 +88,6 @@
   document.addEventListener("DOMContentLoaded", function () {
     fillStats();
     fillSettings();
-    fillSubtitle();
     fillNav();
     initResetBank();
   });

@@ -307,7 +307,9 @@ body.theme-dark .sel-stem { color: #d8dee8; }
   align-items: center;
   gap: var(--space-3);
   min-height: 56px;
-  padding: 8px var(--gutter);
+  /* 顶部额外让出状态栏/挖孔高度：App 在 Android 15+ 是 edge-to-edge，不加这条状态栏图标会紧贴 Logo；
+     浏览器里 env() 为 0，无副作用 */
+  padding: calc(8px + env(safe-area-inset-top, 0px)) var(--gutter) 8px;
   background: var(--primary);
   color: #fff;
 }
