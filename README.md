@@ -49,14 +49,41 @@ App 的网页资源由 `build_www.py` 从服务端版生成，所以服务端版
 
 判分规则与正式竞赛一致：**多选题选项完全一致才算对**，多选、少选、错选都算错。
 
+## v1.5.3 固定签名 + Release 直链（网页点一下就装）
+
+这一版把「怎么拿到 APK」从**登录 GitHub 找构建产物**改成**网页上点一下直接下载**，并顺手修掉一个会丢数据的坑：
+
+| 项 | 改动 |
+| --- | --- |
+| 固定签名 | 新增 `drugquiz` 密钥（备份在 `../../android-signing/`），CI 出的是正式签名 release 包。**改之前每次 CI 的 debug 签名都不一样，新版装不上旧版、必须卸载重装（进度丢失）** |
+| Release 直链 | 打 `v*` tag → 自动发 Release，产物固定名 `DrugQuiz-SC2.apk`：`releases/latest/download/DrugQuiz-SC2.apk` 永久有效 |
+| 版本 | versionCode 9 / versionName 1.5.3（首个签名稳定的版本） |
+| 网页入口 | 静态单文件版顶栏新增「📲 安装」→「📥 下载应用（APK）」面板（见根目录 `../README.md`） |
+
+> ⚠️ 因为换成了正式签名密钥，**从 1.5.2 及更早版本升级到 1.5.3 需要先卸载旧版**（签名不同无法覆盖）。从 1.5.3 往后就可以直接覆盖升级了。卸载前记得在旧 App 里「导出进度」，装好新版再「导入进度」。
+
 ---
 
 ## 安装使用
 
-1. 到 GitHub Actions 的构建产物里下载 `DrugQuiz-SC2.apk`（或本地自行构建，见 BUILD.md）；
-2. 把 APK 传到手机（微信/QQ/数据线均可）；
-3. 手机上点击安装，首次会提示"允许安装未知来源应用"，同意即可；
-4. 桌面出现 **药品法规刷题** 图标，点开就能用。
+**方式一（推荐，直接在手机上装）**
+
+1. 手机浏览器打开网页版 <https://sd3247930.github.io/drug-quiz-sc2/>；
+2. 点右上角 **「📲 安装」** → 面板里点 **「📥 下载应用（APK）」** → 浏览器直接下载安装包；
+3. 点安装，首次会提示「允许安装未知来源应用」，同意即可；
+4. 桌面出现 **药品法规刷题** 图标，点开就能用；
+5. 想把网页上的进度搬进来：先在网页「导出进度」保存文件，再在 App「设置 → 进度备份 → 导入进度」导入。
+
+> 固定直链（永远指向最新版，可直接转发给同事）：
+> <https://github.com/sd3247930/DrugQuiz-SC2-Android/releases/latest/download/DrugQuiz-SC2.apk>
+
+**方式二（本地构建，见 BUILD.md）**
+
+在 `安卓版/` 目录执行 `npx cap sync android` 后在 `android/` 里 `gradlew assembleRelease`（本地无签名环境变量时会自动退回 debug 签名）。
+
+**由 GitHub Actions 自动出包**
+
+推送 `main` 只出 artifact（保留 90 天）；打 `v*` tag 会自动发 Release，产物固定名 `DrugQuiz-SC2.apk`。见 `.github/workflows/build-apk.yml`。
 
 ---
 
