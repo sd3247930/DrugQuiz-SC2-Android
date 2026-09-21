@@ -114,9 +114,10 @@ jobs:
       #   3) 同步产物 assets/capacitor.config.json 必须带上这条配置（防止忘了 npx cap sync）。
       - name: Verify status bar icon policy (single source)
         run: |
-          if grep -q 'windowLightStatusBar' android/app/src/main/res/values/styles.xml; then
+          # 只匹配真正的 <item .../> 元素，注释里提到这个属性名不算（说明性注释允许存在）
+          if grep -q '<item name="android:windowLightStatusBar"' android/app/src/main/res/values/styles.xml; then
             echo "❌ styles.xml 里仍在硬编码 windowLightStatusBar，图标颜色会有两个来源："
-            grep -n 'windowLightStatusBar' android/app/src/main/res/values/styles.xml
+            grep -n '<item name="android:windowLightStatusBar"' android/app/src/main/res/values/styles.xml
             exit 1
           fi
           grep -q '"SystemBars"' capacitor.config.ts && grep -q '"DARK"' capacitor.config.ts \
