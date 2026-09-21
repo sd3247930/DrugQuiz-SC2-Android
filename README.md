@@ -134,6 +134,9 @@ node verify_www.mjs            # 浏览器验收 App 内网页（55 项）
 python sync_hbuilder.py        # 同步到 HBuilderX 工程（可选，见 HBuilderX说明.md）
 node verify_hbuilder.mjs       # 验收 HBuilderX 工程（29 项）
 node verify-quiz-40.mjs        # 作答测试：单选 20 道 + 多选 20 道（16 项断言）
+node verify-sheet.mjs          # 全屏面板验收（16 项：安全区 + 滑动关闭 + 返回键）
+python analyze_phone_screen.py <截图.png>   # 手机截图像素分析（顶栏安全区 / 挖孔 / 图标颜色 / 底栏）
+node probe_device_webview.mjs probe         # 真机 WebView 探针（需临时开启调试开关，见交付说明）
 ```
 
 > 同一份网页资源现在有两个「壳」：Capacitor（本目录，出正式 APK）与 HBuilderX uni-app 工程
