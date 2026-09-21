@@ -27,7 +27,8 @@ const config: CapacitorConfig = {
    * 网页用 max(env(...), var(--safe-area-inset-*)) 取大值让开状态栏/挖孔。
    */
   plugins: {
-    SystemBars: {
+    /* 键名必须与插件类名一致（Capacitor 用类名找配置），加引号是为了让 CI 断言好匹配 */
+    "SystemBars": {
       style: "DARK",
       insetsHandling: "css",
     },

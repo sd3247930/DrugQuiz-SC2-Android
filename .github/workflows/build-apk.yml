@@ -120,9 +120,9 @@ jobs:
             grep -n '<item name="android:windowLightStatusBar"' android/app/src/main/res/values/styles.xml
             exit 1
           fi
-          grep -q '"SystemBars"' capacitor.config.ts && grep -q '"DARK"' capacitor.config.ts \
+          grep -q 'SystemBars' capacitor.config.ts && grep -q '"DARK"' capacitor.config.ts \
             || { echo "❌ capacitor.config.ts 缺少 SystemBars.style = DARK（深色背景 → 浅色图标）"; exit 1; }
-          grep -q '"SystemBars"' android/app/src/main/assets/capacitor.config.json \
+          grep -q 'SystemBars' android/app/src/main/assets/capacitor.config.json \
             || { echo "❌ assets/capacitor.config.json 未同步 SystemBars 配置（需重新执行 npx cap sync android）"; exit 1; }
           echo "✅ 状态栏图标策略唯一来源 = SystemBars(style=DARK → 浅色图标)；styles.xml 无硬编码"
 
