@@ -3,6 +3,7 @@ package com.drugquiz.sc2;
 import android.os.Bundle;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
+import android.webkit.WebSettings;
 
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -35,11 +36,19 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        /* ⚠️ 临时诊断代码（定位完后删除）：WebView 调试开关必须在**任何 WebView 实例创建之前**调用，
+           否则 devtools 端口不会建立（Capacitor 自己的开关是在 WebView 创建之后才调的）。 */
+        WebView.setWebContentsDebuggingEnabled(true);
+
         super.onCreate(savedInstanceState);
 
         if (getBridge() == null) return;
         final WebView webView = getBridge().getWebView();
         if (webView == null) return;
+
+        /* 本地资源（https://localhost/assets 下的 www）不需要 HTTP 缓存：
+           否则升级安装后 WebView 可能继续用旧的 style.css / *.js，导致改动不生效。 */
+        webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
 
         /* 1) 状态栏图标样式：插件不可用时的兜底通道 */
         webView.addJavascriptInterface(
