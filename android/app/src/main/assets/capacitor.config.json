@@ -5,9 +5,6 @@
 	"server": {
 		"androidScheme": "https"
 	},
-	"android": {
-		"webContentsDebuggingEnabled": true
-	},
 	"plugins": {
 		"SystemBars": {
 			"style": "DARK",

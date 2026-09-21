@@ -37,7 +37,7 @@ def close_to(px, target, tol=BRAND_TOL):
     return all(abs(px[i] - target[i]) <= tol for i in range(3))
 
 
-def row_is_brand(img, y, x0, x1, ratio=0.6):
+def row_is_brand(img, y, x0, x1, ratio=0.2):
     """从 x0 到 x1 采样，判断这一行是否大部分是品牌色"""
     total = 0
     hit = 0
@@ -90,39 +90,51 @@ def main():
         print(f"           起始 y={band_start}px = {band_start / d:.1f} CSS px"
               f" → 状态栏那一条{'由网页顶栏铺色（edge-to-edge）' if band_start <= 2 else '不是网页顶栏铺色'}")
 
-    # ---- 2) 顶栏色带内第一行"非品牌色"像素 = 内容（Logo/文字）起始 ----
-    content_top = None
-    if band_start is not None:
-        for y in range(band_start, band_end + 1):
-            found = False
-            for x in range(probe_x0, probe_x1, 2):
-                if cx0 <= x <= cx1 and y <= cy1:      # 跳过挖孔
-                    continue
-                if not close_to(img.getpixel((x, y)), BRAND):
-                    found = True
-                    break
-            if found:
-                content_top = y
-                break
-    if content_top is not None:
-        print(f"顶栏内容起始：y={content_top}px = {content_top / d:.1f} CSS px"
-              f"（相对状态栏底边 {args.status_bar}px，{'在下方 ✅' if content_top >= args.status_bar else '仍在状态栏/挖孔区内 ❌'}）")
-
-    # ---- 3) 挖孔区域是否黑 + 是否与内容相交 ----
-    dark = 0
+    # ---- 2) 挖孔矩形内是否有"非品牌色"像素（= 顶栏内容是否压进挖孔区）----
+    #      系统状态栏图标画在左右两侧，不会落在居中的挖孔矩形里，所以这个指标很干净：
+    #      修好之后该区域应当几乎全是顶栏底色。
+    # 只看挖孔带里"落在顶栏内部"的那一段（y 从顶栏上沿到状态栏底边），
+    # 上方 y=0..顶栏上沿 那一条是页面背景，与内容无关，计进来会造成误判。
+    y_from = band_start + 4 if band_start is not None else cy0
+    y_to = min(cy1, args.status_bar)
+    non_brand = 0
     total = 0
-    for y in range(cy0, cy1, 4):
-        for x in range(cx0, cx1, 4):
+    for y in range(y_from, y_to, 3):
+        for x in range(cx0, cx1, 3):
             total += 1
+            if not close_to(img.getpixel((x, y)), BRAND, tol=34):
+                non_brand += 1
+    ratio = non_brand / max(1, total)
+    print(f"挖孔区域纯净度：非品牌色像素 {non_brand}/{total}（{ratio * 100:.1f}%）"
+          f" → {'干净（内容已避开挖孔）✅' if ratio < 0.02 else '有内容压在挖孔区 ❌'}")
+
+    # ---- 3) 顶栏色带高度（判断 padding-top 是否加上了安全区）----
+    if band_start is not None:
+        h = (band_end - band_start + 1) / d
+        print(f"顶栏色带高度：{h:.1f} CSS px → "
+              f"{'已含安全区内边距（8 + 安全区 + 内容）✅' if h > 70 else '未含安全区（约 52px = 8+36+8）❌'}")
+
+    # ---- 4) Logo 顶部位置（硬指标）----
+    #      Logo 是左侧 36×36 CSS px 的方框（内含白色描边 + 图案），位置固定在 x≈16..52 CSS px。
+    #      在该区域里从上往下找第一行"明显不是纯品牌色"的像素 —— 那就是 Logo 方框的上边缘。
+    #      状态栏图标不在这条竖带里（在更靠中间/右侧），所以这个指标不受图标干扰。
+    lx0, lx1 = int(14 * d), int(56 * d)          # CSS 14..56 → 物理
+    logo_top = None
+    for y in range(0, min(H, 800)):
+        hits = 0
+        for x in range(lx0, lx1, 2):
             r, g, b = img.getpixel((x, y))
-            if r < 40 and g < 40 and b < 40:
-                dark += 1
-    print(f"挖孔区域：{dark}/{total} 采样点为深色（{dark / max(1, total) * 100:.0f}%）"
-          f" → {'看起来是硬件挖孔（黑）' if dark / max(1, total) > 0.5 else '不是黑（可能是白色面板或系统绘制）'}")
-    if content_top is not None:
-        overlap = content_top < cy1
-        print(f"内容与挖孔：内容起始 y={content_top} vs 挖孔底边 y={cy1} → "
-              f"{'相交 ❌（会被摄像头遮住）' if overlap else '不相交 ✅'}")
+            if abs(r - BRAND[0]) > 30 or abs(g - BRAND[1]) > 30 or abs(b - BRAND[2]) > 30:
+                hits += 1
+        if hits >= 3:
+            logo_top = y
+            break
+    safe = args.status_bar
+    if logo_top is None:
+        print("Logo 顶部：未在左侧 Logo 区域找到内容（可能整块都是纯品牌色）")
+    else:
+        print(f"Logo 顶部：y={logo_top}px = {logo_top / d:.1f} CSS px（状态栏/挖孔下沿 {safe / d:.1f} CSS px）"
+              f" → {'已避开摄像头/状态栏 ✅' if logo_top >= safe else '仍压在状态栏/挖孔区内 ❌'}")
 
     # ---- 4) 状态栏区域（排除挖孔）的亮/暗像素占比 ----
     light = 0

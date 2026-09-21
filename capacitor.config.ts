@@ -13,10 +13,6 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: "https",
   },
-  /* ⚠️ 临时诊断开关：允许用 adb 连 WebView 调试端口读取真实 DOM（诊断完成后必须删除） */
-  android: {
-    webContentsDebuggingEnabled: true,
-  },
   /**
    * 状态栏 / 手势条（Capacitor 8 内置的 SystemBars 插件，Bridge 会自动注册）
    *

@@ -36,10 +36,6 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        /* ⚠️ 临时诊断代码（定位完后删除）：WebView 调试开关必须在**任何 WebView 实例创建之前**调用，
-           否则 devtools 端口不会建立（Capacitor 自己的开关是在 WebView 创建之后才调的）。 */
-        WebView.setWebContentsDebuggingEnabled(true);
-
         super.onCreate(savedInstanceState);
 
         if (getBridge() == null) return;
