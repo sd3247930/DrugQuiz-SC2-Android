@@ -23,6 +23,7 @@
    * 说明：Capacitor 内置的 SystemBars 插件提供 setStyle；插件不可用时静默跳过。
    */
   function setStatusBarIconStyle(style) {
+    /* 通道 1：Capacitor 内置 SystemBars 插件（部分机型不生效） */
     try {
       var cap = window.Capacitor;
       var bars = cap && cap.Plugins && cap.Plugins.SystemBars;
@@ -30,7 +31,23 @@
         bars.setStyle({ style: style });
       }
     } catch (err) {
-      /* 浏览器 / 插件不可用：忽略，不阻塞面板逻辑 */
+      /* 忽略 */
+    }
+    /* 通道 2：App 自己的原生接口（MainActivity 注入，确定性兜底） */
+    try {
+      if (window.AndroidAppShell && typeof AndroidAppShell.setStatusBarStyle === "function") {
+        AndroidAppShell.setStatusBarStyle(style);
+      }
+    } catch (err) {
+      /* 忽略 */
+    }
+    /* 通道 3：HBuilderX / HTML5+ 环境（注意语义相反：dark = 深色图标） */
+    try {
+      if (window.plus && plus.navigator && typeof plus.navigator.setStatusBarStyle === "function") {
+        plus.navigator.setStatusBarStyle(style === "LIGHT" ? "dark" : "light");
+      }
+    } catch (err) {
+      /* 浏览器里没有 plus：忽略 */
     }
   }
 
