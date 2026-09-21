@@ -94,12 +94,22 @@ async function selOpen() {
   selApplyFilter();
   panel.classList.remove("hidden");
   document.body.classList.add("sheet-open");
+  /* 面板是白底：把状态栏图标切成深色（否则白底白图标看不见），并接管返回键 */
+  if (window.SheetKit) {
+    window.SheetKit.setStatusBarIconStyle("LIGHT");
+    window.SheetKit.pushBackGuard("selectionPanel");
+  }
 }
 
 function selClose() {
   const panel = $("selectionPanel");
   if (panel) panel.classList.add("hidden");
   document.body.classList.remove("sheet-open");
+  /* 回到深青顶栏：状态栏图标切回浅色；并释放返回键拦截 */
+  if (window.SheetKit) {
+    window.SheetKit.setStatusBarIconStyle("DARK");
+    window.SheetKit.releaseBackGuard("selectionPanel");
+  }
   selSave();     /* 关闭面板时保留勾选（方案 7 节的约定） */
 }
 
@@ -331,6 +341,8 @@ function selInit() {
   if (clear) clear.addEventListener("click", selClear);
   const start = $("selStartBtn");
   if (start) start.addEventListener("click", selStart);
+  /* 左右滑动也可关闭面板（起手点距边缘 ≥24px，避免与系统返回手势冲突） */
+  if (window.SheetKit) window.SheetKit.registerSheet($("selectionPanel"), selClose);
 }
 
 document.addEventListener("DOMContentLoaded", selInit);

@@ -149,7 +149,8 @@ body.theme-dark .wrong-detail { color: #d8dee8; }
 .footer code { font-size: 12px; }
 
 .toast {
-  position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%);
+  /* 提示条要落在 60px 底部导航栏上方，否则会挡住 tab 图标 */
+  position: fixed; left: 50%; bottom: calc(var(--tabbar-h, 60px) + 16px); transform: translateX(-50%);
   background: rgba(30, 35, 45, 0.92); color: #fff; padding: 10px 18px;
   border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .25s;
   pointer-events: none; z-index: 99; max-width: 90vw; text-align: center;
@@ -173,7 +174,8 @@ body.sheet-open { overflow: hidden; }
 .sheet {
   position: fixed; inset: 0; z-index: 60; background: #fff;
   display: flex; flex-direction: column; gap: 10px;
-  padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  /* 顶部同样让出「状态栏 ∪ 挖孔」：面板铺满全屏，标题/✕ 若不避开会被摄像头挡住 */
+  padding: calc(12px + var(--safe-top)) 14px calc(12px + var(--safe-bottom));
 }
 .sheet-header { display: flex; align-items: center; justify-content: space-between; }
 .sheet-title { font-size: 17px; font-weight: 600; color: #1a5fb4; }
@@ -306,7 +308,10 @@ body.theme-dark .sel-stem { color: #d8dee8; }
   align-items: center;
   gap: var(--space-3);
   min-height: 56px;
-  padding: 8px var(--gutter);
+  /* 顶部额外让出「状态栏 ∪ 挖孔」高度：App 在 Android 15+ 是 edge-to-edge，
+     安全区取 env() 与 Capacitor SystemBars 注入的 --safe-area-inset-* 的较大值；
+     浏览器里两者都是 0，无副作用 */
+  padding: calc(8px + var(--safe-top)) var(--gutter) 8px;
   background: var(--primary);
   color: #fff;
 }
@@ -317,7 +322,11 @@ body.theme-dark .sel-stem { color: #d8dee8; }
   width: 36px;
   height: 36px;
   border-radius: var(--radius-sm);
-  background: #fff;
+  /* 透明底 + 16% 白描边（与右侧「生产二部」胶囊同色），
+     既不像白底那样形成一圈实白边，又让 Logo 在深青顶栏上有清晰边界。
+     首页/练习/答题卡/设置 四个页面共用这一条规则。 */
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.16);
   overflow: hidden;
 }
 .app-bar-logo img { width: 30px; height: auto; display: block; }
@@ -435,7 +444,10 @@ body.theme-dark .tabbar { background: var(--surface); border-color: var(--border
   /* 间距 */
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px;
   --gutter: 16px;                /* 屏幕外边距 */
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* 安全区：两套来源取大值 —— env() 供浏览器/旧内核，--safe-area-inset-* 由 Capacitor 的
+     SystemBars 插件在 App 内注入（Android 15+ edge-to-edge）。取 max 只是为了兜底，不会叠加。 */
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
   --tabbar-h: 60px;              /* 底部导航高度 */
   --scroll-offset: 72px;         /* 底部留白，避免被操作条遮挡 */
 }
@@ -550,3 +562,93 @@ body.theme-dark .btn-lawtip:hover { border-color: #7db3f0; color: #7db3f0; }
 body.theme-dark .lawtip-title { color: #7db3f0; }
 body.theme-dark .lawtip-text { color: #d8dee8; }
 body.theme-dark .lawtip-hint { color: #9aa6b8; }
+
+/* ============================================================
+   我的笔记（E4）：写在解析下方，失焦 / 停止输入后自动保存
+   ============================================================ */
+.note-box {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  padding: 12px 14px;
+}
+.note-title { font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 8px; }
+.note-input {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+.note-input:focus { outline: none; border-color: var(--primary); }
+.note-input::placeholder { color: var(--text-3); }
+body.theme-dark .note-box { background: var(--surface-soft); border-color: var(--border); }
+body.theme-dark .note-input { background: var(--surface); color: var(--text); border-color: var(--border); }
+
+/* ============================================================
+   答题卡题号矩阵（设计稿 04 页 / 待办 P2=A）
+   规格：5 列移动端优先（393px 下每格约 66px，触摸目标 ≥ 44px）、8px 间隙、
+        6px 圆角矩形（不用整圆）、状态色与设计稿一致
+   ============================================================ */
+.matrix-legend {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  margin: 2px 0 10px; font-size: 12px; color: var(--text-3);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 5px; }
+.legend-dot {
+  width: 12px; height: 12px; border-radius: 3px;
+  border: 1px solid var(--border); background: var(--surface-soft);
+}
+.legend-dot.dot-correct { background: var(--success); border-color: var(--success); }
+.legend-dot.dot-wrong { background: var(--danger); border-color: var(--danger); }
+.legend-dot.dot-collected { background: var(--warning); border-color: var(--warning); }
+
+.answer-matrix {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+.matrix-cell {
+  position: relative;
+  min-height: 44px;
+  padding: 0 2px;
+  font-family: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.matrix-cell:hover { border-color: var(--border-strong); }
+.matrix-cell.correct { background: var(--success); border-color: var(--success); color: #fff; }
+.matrix-cell.wrong { background: var(--danger); border-color: var(--danger); color: #fff; }
+.matrix-star {
+  position: absolute; top: 0; right: 3px;
+  font-size: 10px; line-height: 1.4; color: var(--warning);
+}
+.matrix-cell.correct .matrix-star,
+.matrix-cell.wrong .matrix-star { color: #fff; }
+
+/* 大屏：题号变小后一屏能看更多，列数自适应（移动端仍为 5 列） */
+@media (min-width: 600px) {
+  .answer-matrix { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); }
+}
+
+/* 夜间模式：实心状态色在深色底上过亮，改用「浅底 + 亮字」以保住对比度 */
+body.theme-dark .matrix-cell { background: var(--surface-soft); border-color: var(--border); color: var(--text-2); }
+body.theme-dark .matrix-cell.correct { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+body.theme-dark .matrix-cell.wrong { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+body.theme-dark .matrix-cell.correct .matrix-star,
+body.theme-dark .matrix-cell.wrong .matrix-star { color: inherit; }

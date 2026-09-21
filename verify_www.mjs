@@ -14,7 +14,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const WWW = path.join(__dirname, "www");
+/* 默认验收 安卓版/www；设置 HBX_WWW_DIR 可指向 HBuilderX 工程里的副本
+   例：$env:HBX_WWW_DIR="D:\codex code\HBuilderProjects\DrugQuiz-SC2-Android\Pharma Law Quiz Bank\hybrid\html"; node verify_www.mjs */
+const WWW = process.env.HBX_WWW_DIR ? path.resolve(process.env.HBX_WWW_DIR) : path.join(__dirname, "www");
 const SHOT_DIR = path.join(__dirname, "验证截图");
 const PORT = 4199;
 const BASE = `http://localhost:${PORT}/`;

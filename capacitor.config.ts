@@ -13,6 +13,25 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: "https",
   },
+  /**
+   * 状态栏 / 手势条（Capacitor 8 内置的 SystemBars 插件，Bridge 会自动注册）
+   *
+   * 为什么必须显式写：插件默认 style = DEFAULT，会跟随白天/夜间自动切换——
+   * 白天模式下它把状态栏图标设成**深色**，压在深青顶栏 #0F5B78 上几乎看不清。
+   *
+   * style 语义（注意与直觉相反）：
+   *   'DARK'  = 深色背景 → **浅色（白）图标**  ← 我们用这个，配合深青顶栏
+   *   'LIGHT' = 浅色背景 → 深色图标（面板打开时由网页临时切换）
+   *
+   * insetsHandling：'css' = 由插件把 insets 注入成 CSS 变量 --safe-area-inset-*，
+   * 网页用 max(env(...), var(--safe-area-inset-*)) 取大值让开状态栏/挖孔。
+   */
+  plugins: {
+    SystemBars: {
+      style: "DARK",
+      insetsHandling: "css",
+    },
+  },
 };
 
 export default config;

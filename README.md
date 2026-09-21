@@ -101,11 +101,17 @@ App 的网页资源由 `build_www.py` 从服务端版生成，所以服务端版
 │  ├─ page-init.js           # ★ 填充统计与设置项、导航高亮、重置入口
 │  └─ data-offline.js        # 离线题库（由 generate_offline.py 生成）
 ├─ web/                      # App 专用脚本源文件（生成时复制进 www/）
+│  ├─ local-api.js           # ★ 本地接口垫片源文件
+│  ├─ page-init.js           # ★ 页面初始化源文件
+│  └─ app-shim.js            # ★ HTML5+（HBuilderX）环境的剪贴板兼容补丁
 ├─ data/questions.json       # 题库快照（独立克隆/CI 构建用；本地优先读 ../tools/data/questions.json）
 ├─ template_server/          # 服务端版快照（同上用途）
 ├─ generate_offline.py       # 题库 → www/data-offline.js
 ├─ build_www.py              # 服务端版模板 + 脚本 → www/（含 Jinja 残留检查与孤儿文件清理）
 ├─ verify_www.mjs            # 用真实浏览器验收 App 内网页（55 项）
+├─ sync_hbuilder.py          # 把 www/ 同步到 HBuilderX 工程并校验一致性
+├─ verify_hbuilder.mjs       # HBuilderX 工程验收（29 项：结构 + file:// 冒烟）
+├─ HBuilderX说明.md           # 在 HBuilderX 里运行/调试的完整说明
 ├─ capacitor.config.ts       # Capacitor 配置（包名 / 应用名 / webDir）
 ├─ package.json              # Capacitor 依赖与构建脚本
 ├─ android/                  # Capacitor 生成的 Android 原生工程
@@ -125,7 +131,14 @@ python generate_offline.py     # 重新生成离线题库
 python build_www.py            # 重新拆分网页资源
 npx cap sync android           # 同步到 Android 工程
 node verify_www.mjs            # 浏览器验收 App 内网页（55 项）
+python sync_hbuilder.py        # 同步到 HBuilderX 工程（可选，见 HBuilderX说明.md）
+node verify_hbuilder.mjs       # 验收 HBuilderX 工程（29 项）
+node verify-quiz-40.mjs        # 作答测试：单选 20 道 + 多选 20 道（16 项断言）
 ```
+
+> 同一份网页资源现在有两个「壳」：Capacitor（本目录，出正式 APK）与 HBuilderX uni-app 工程
+> （`D:\codex code\HBuilderProjects\DrugQuiz-SC2-Android\Pharma Law Quiz Bank`，用于在 HBuilderX 里运行调试）。
+> 同步与验收命令见 [HBuilderX说明.md](./HBuilderX说明.md)。
 
 改题流程：在项目源目录重跑 `../tools/import-new-bank.py` → 把新的 `questions.json`
 复制到本目录 `data/questions.json` 更新快照 → 再执行上面第 2～4 条命令 → 重新打包。

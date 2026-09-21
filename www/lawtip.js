@@ -24,6 +24,11 @@ function lawTipReset() {
   const sheet = document.getElementById("lawTipSheet");
   if (sheet) sheet.classList.add("hidden");
   document.body.classList.remove("sheet-open");
+  /* 切题时强制关闭：状态栏图标切回浅色、释放返回键拦截 */
+  if (window.SheetKit) {
+    window.SheetKit.setStatusBarIconStyle("DARK");
+    window.SheetKit.releaseBackGuard("lawTipSheet");
+  }
   const btn = document.getElementById("lawTipBtn");
   if (btn) {
     btn.disabled = false;
@@ -77,12 +82,22 @@ async function lawTipShow() {
   body.scrollTop = 0;
   document.getElementById("lawTipSheet").classList.remove("hidden");
   document.body.classList.add("sheet-open");
+  /* 面板是白底：状态栏图标切深色，并接管返回键 */
+  if (window.SheetKit) {
+    window.SheetKit.setStatusBarIconStyle("LIGHT");
+    window.SheetKit.pushBackGuard("lawTipSheet");
+  }
 }
 
 function lawTipClose() {
   const sheet = document.getElementById("lawTipSheet");
   if (sheet) sheet.classList.add("hidden");
   document.body.classList.remove("sheet-open");
+  /* 回到深青顶栏：状态栏图标切回浅色；并释放返回键拦截 */
+  if (window.SheetKit) {
+    window.SheetKit.setStatusBarIconStyle("DARK");
+    window.SheetKit.releaseBackGuard("lawTipSheet");
+  }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -90,6 +105,8 @@ document.addEventListener("DOMContentLoaded", function () {
   if (btn) btn.addEventListener("click", lawTipShow);
   const close = document.getElementById("lawTipClose");
   if (close) close.addEventListener("click", lawTipClose);
+  /* 左右滑动也可关闭面板 */
+  if (window.SheetKit) window.SheetKit.registerSheet(document.getElementById("lawTipSheet"), lawTipClose);
   /* 切题时由 script.js 的钩子调用（renderQuestion 末尾） */
   window.onQuestionRendered = lawTipReset;
 });

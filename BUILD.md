@@ -61,6 +61,30 @@ copy app\build\outputs\apk\debug\app-debug.apk "..\DrugQuiz-SC2.apk"
 
 ---
 
+## 方式三：在 HBuilderX 里运行 / 调试（不出包）
+
+同一份网页资源还有一个 uni-app 壳，用于在 HBuilderX 里运行与调试：
+
+```
+D:\codex code\HBuilderProjects\DrugQuiz-SC2-Android\Pharma Law Quiz Bank
+```
+
+```powershell
+# 1. 改完界面/题库后，先把 www/ 同步过去
+cd "D:\codex code\四合一工具集\药品管理题库\安卓版"
+python sync_hbuilder.py
+
+# 2. 在 HBuilderX 里打开该工程 → 运行 → 运行到手机或模拟器 → 运行到 Android App 基座
+```
+
+细节（含离线自检与无界面预编译）见 [HBuilderX说明.md](./HBuilderX说明.md)。
+
+> 注意：HBuilderX 那条路径**不出正式 APK**，网页上「📥 下载应用（APK）」的直链仍然指向
+> 本目录经 GitHub Actions 构建的产物。云打包的包名与签名已预留（`com.drugquiz.sc2` +
+> `android-signing/drugquiz-release.keystore`），本次未执行。
+
+---
+
 ## 本机（沙箱环境）构建受限说明
 
 在当前这台机器的沙箱环境里，**Gradle 无法启动构建**，报错为：
