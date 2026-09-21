@@ -83,7 +83,7 @@ jobs:
           diff android/app/src/main/assets/public/index.html www/index.html >/dev/null || { echo "❌ index.html 与 www 不一致，需重新 cap sync"; exit 1; }
           # 页面结构：4 个页面 + 本地接口垫片 + 前端脚本（v1.1 起与服务端版对齐）
           for f in index.html practice.html answer_card.html settings.html \
-                   local-api.js page-init.js script.js selection.js law.js style.css; do
+                   local-api.js page-init.js script.js selection.js law.js lawtip.js sheet.js style.css; do
             test -f "android/app/src/main/assets/public/$f" || { echo "❌ 缺少资源：$f"; exit 1; }
           done
           diff android/app/src/main/assets/public/answer_card.html www/answer_card.html >/dev/null \
@@ -107,12 +107,23 @@ jobs:
           test "$NORM" = "#0F5B78" || { echo "❌ 背景层不是品牌色 #0F5B78（当前 $COLOR）"; exit 1; }
           echo "✅ 自适应图标背景层为品牌色 $COLOR（无白色）"
 
-      # 防回归：状态栏图标必须是浅色，否则深色图标压在深青顶栏上会看不清
-      - name: Verify status bar icons are light
+      # 防回归（v1.5.4 起的新策略）：状态栏图标颜色**只有一个来源** = capacitor.config.ts 的 SystemBars 配置。
+      #   1) styles.xml 不许再硬编码 windowLightStatusBar（历史遗留：主题写一套、插件又改一套，白天会打架）；
+      #   2) SystemBars.style 必须是 DARK（= 深色背景 → 浅色/白色图标），否则插件在白天会把图标改成深色，
+      #      压在深青顶栏 #0F5B78 上看不清；
+      #   3) 同步产物 assets/capacitor.config.json 必须带上这条配置（防止忘了 npx cap sync）。
+      - name: Verify status bar icon policy (single source)
         run: |
-          grep -q '<item name="android:windowLightStatusBar">false</item>' android/app/src/main/res/values/styles.xml \
-            || { echo "❌ AppTheme / AppTheme.NoActionBar 的 windowLightStatusBar 不是 false：状态栏图标会是深色，在深青顶栏上看不清"; exit 1; }
-          echo "✅ 状态栏图标为浅色（AppTheme / AppTheme.NoActionBar）"
+          if grep -q 'windowLightStatusBar' android/app/src/main/res/values/styles.xml; then
+            echo "❌ styles.xml 里仍在硬编码 windowLightStatusBar，图标颜色会有两个来源："
+            grep -n 'windowLightStatusBar' android/app/src/main/res/values/styles.xml
+            exit 1
+          fi
+          grep -q '"SystemBars"' capacitor.config.ts && grep -q '"DARK"' capacitor.config.ts \
+            || { echo "❌ capacitor.config.ts 缺少 SystemBars.style = DARK（深色背景 → 浅色图标）"; exit 1; }
+          grep -q '"SystemBars"' android/app/src/main/assets/capacitor.config.json \
+            || { echo "❌ assets/capacitor.config.json 未同步 SystemBars 配置（需重新执行 npx cap sync android）"; exit 1; }
+          echo "✅ 状态栏图标策略唯一来源 = SystemBars(style=DARK → 浅色图标)；styles.xml 无硬编码"
 
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
