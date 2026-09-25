@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "banks": [
+    {
+      "id": "药品法规",
+      "name": "药品法规刷题",
+      "meta": "banks/药品法规.meta.json",
+      "data": "banks/药品法规.json"
+    },
+    {
+      "id": "软考-架构师",
+      "name": "软考架构师刷题",
+      "meta": "banks/软考-架构师.meta.json",
+      "data": "banks/软考-架构师.json"
+    }
+  ],
+  "default": "药品法规"
+}

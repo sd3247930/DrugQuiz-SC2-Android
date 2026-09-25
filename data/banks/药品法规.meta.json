@@ -1,0 +1,17 @@
+{
+  "id": "药品法规",
+  "name": "药品法规刷题",
+  "appName": "药品法规刷题",
+  "appId": "com.drugquiz.sc2",
+  "version": "1.5.7",
+  "total": 300,
+  "single": 190,
+  "multiple": 110,
+  "requireExplanation": true,
+  "requireLaw": true,
+  "hasExplanationCount": 300,
+  "hasLawCount": 300,
+  "source": "private/单选题 + private/多选题（网页导出 md，4 步流水线生成）",
+  "license": "内部题库，含法规条文引用",
+  "description": "药品管理法规知识竞赛试题库（生产二部专用）"
+}

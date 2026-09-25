@@ -1,0 +1,17 @@
+{
+  "id": "软考-架构师",
+  "name": "软考架构师刷题",
+  "appName": "软考架构师刷题",
+  "appId": "com.drugquiz.ruankao",
+  "version": "1.0.0",
+  "total": 937,
+  "single": 937,
+  "multiple": 0,
+  "requireExplanation": false,
+  "requireLaw": false,
+  "hasExplanationCount": 502,
+  "hasLawCount": 0,
+  "source": "ruankao-senior-architecture-designer（2016–2025 综合知识 13 份试卷）",
+  "license": "社区开源仓库整理，自用可以，对外分发谨慎",
+  "description": "软考·系统架构设计师 综合知识 历年真题"
+}

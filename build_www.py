@@ -42,7 +42,7 @@ WEB = os.path.join(BASE, "web")        # App 专用脚本（local-api.js / page-
 # 生成清单（复制、清理、校验都以此为准，避免"复制了但被当孤儿删掉"这类不一致）
 PAGES = ("index.html", "practice.html", "answer_card.html", "settings.html")
 STATIC_COPIES = ("style.css", "script.js", "selection.js", "law.js", "lawtip.js")
-APP_SCRIPTS = ("local-api.js", "page-init.js")
+APP_SCRIPTS = ("local-api.js", "page-init.js", "bank-selector.js")
 GENERATED_EXTRA = ("data-offline.js",)   # 由 generate_offline.py 产出
 SKIP_STATIC = {"manifest.json", "sw.js"}   # PWA 专用，App 内不需要
 SKIP_STATIC_DIRS = {"icons"}               # PWA 图标目录同样跳过
@@ -172,7 +172,9 @@ def inject_scripts(html):
         '<script src="local-api.js"></script>\n'
         '<script src="script.js"></script>'
     )
-    html = html.replace("</body>", '<script src="page-init.js"></script>\n</body>')
+    html = html.replace("</body>",
+                        '<script src="page-init.js"></script>\n'
+                        '<script src="bank-selector.js"></script>\n</body>')
     return html
 
 

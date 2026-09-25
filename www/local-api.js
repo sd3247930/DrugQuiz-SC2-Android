@@ -31,6 +31,8 @@
   const WRONG_KEY = "drug_quiz_wrong";       /* 旧版键，仅用于一次性迁移 */
   const SETTINGS_KEY = "drug_quiz_settings";
   const SELECTION_KEY = "drug_quiz_selection";
+  const BANK_KEY = "drug_quiz_bank";         /* 新增（M1）：当前选中的题库 id */
+  const DEFAULT_BANK = "药品法规";            /* 老数据迁移的目标桶（M2） */
 
   const DEFAULT_SETTINGS = {
     mode: "seq", back_mode: false, font_size: "large", dark_mode: false, auto_next: false
@@ -50,11 +52,74 @@
     try { localStorage.removeItem(key); } catch (e) { /* 忽略 */ }
   }
 
-  function loadProgress() {
-    const data = safeGet(DATA_KEY);
-    return (data && typeof data === "object" && !Array.isArray(data)) ? data : {};
+  /* ---------------- 多题库：当前题库与分桶（M1） ----------------
+     键名一个都没改（drug_quiz_data / drug_quiz_wrong / … 保持不变），
+     只把**内部结构**从「平铺」改成「按题库分桶」：
+       drug_quiz_data = { "药品法规": { "1": {...} }, "软考-架构师": { ... } }
+       drug_quiz_wrong = { "药品法规": [1,5] }   ← 旧键，仅迁移期使用
+     设置/选题仍是全局，不分桶（字号、夜间模式是全局偏好）。 */
+
+  function bankList() {
+    const idx = window.__BANK_INDEX__;
+    return (idx && idx.banks) ? idx.banks : [];
   }
-  function saveProgress(progress) { safeSet(DATA_KEY, progress); }
+  function getCurrentBank() {
+    const saved = safeGet(BANK_KEY);
+    const ids = bankList().map(function (b) { return b.id; });
+    if (saved && (ids.length === 0 || ids.indexOf(saved) >= 0)) return saved;
+    const idx = window.__BANK_INDEX__;
+    return (idx && idx.default) || DEFAULT_BANK;
+  }
+  function setCurrentBank(id) {
+    safeSet(BANK_KEY, id);
+  }
+
+  function loadProgress() {
+    const all = safeGet(DATA_KEY);
+    if (!all || typeof all !== "object" || Array.isArray(all)) return {};
+    const cur = all[getCurrentBank()];
+    return (cur && typeof cur === "object" && !Array.isArray(cur)) ? cur : {};
+  }
+  function saveProgress(progress) {
+    const all = safeGet(DATA_KEY);
+    const bag = (all && typeof all === "object" && !Array.isArray(all)) ? all : {};
+    bag[getCurrentBank()] = progress;
+    safeSet(DATA_KEY, bag);
+  }
+  /* 指定桶写入：老数据（静态版的 300 题进度）永远属于「药品法规」，
+     不能因为当前选的是软考题库就写进软考桶（踩过这个坑）。 */
+  function saveProgressToBank(bankId, progress) {
+    const all = safeGet(DATA_KEY);
+    const bag = (all && typeof all === "object" && !Array.isArray(all)) ? all : {};
+    bag[bankId] = progress;
+    safeSet(DATA_KEY, bag);
+  }
+
+  /** M2：把老版本的平铺数据一次性迁移到「药品法规」分桶（幂等） */
+  function migrateStorageIfNeeded() {
+    const raw = safeGet(DATA_KEY);
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      const keys = Object.keys(raw);
+      // 老结构 = 键是纯数字题号；新结构 = 键是题库 id
+      const looksOld = keys.length > 0 && keys.every(function (k) { return /^\d+$/.test(k); });
+      if (looksOld) {
+        const migrated = {};
+        migrated[DEFAULT_BANK] = raw;
+        safeSet(DATA_KEY, migrated);
+        if (window.__BANK_ENABLE_LOG__) {
+          console.log("[bank] 老进度已迁移到「" + DEFAULT_BANK + "」分桶");
+        }
+      }
+    }
+    // 旧错题键：数组 → 分桶对象（迁移期用，新代码不再读写该键）
+    const wrong = safeGet(WRONG_KEY);
+    if (Array.isArray(wrong)) {
+      const migratedWrong = {};
+      migratedWrong[DEFAULT_BANK] = wrong;
+      safeSet(WRONG_KEY, migratedWrong);
+    }
+    if (!safeGet(BANK_KEY)) setCurrentBank(DEFAULT_BANK);
+  }
 
   function loadSettings() {
     return Object.assign({}, DEFAULT_SETTINGS, safeGet(SETTINGS_KEY) || {});
@@ -89,11 +154,29 @@
         progress[qid].wrong_count = (wrong.wrongCount && wrong.wrongCount[String(idx)]) || 1;
       });
     }
-    saveProgress(progress);
+    saveProgressToBank(DEFAULT_BANK, progress);
   }
 
-  /* ---------------- 题库 ---------------- */
-  function bank() { return window.__QUESTION_BANK__ || []; }
+  /* ---------------- 题库：读当前题库（多题库，M1）---------------- */
+  function bank() {
+    const id = getCurrentBank();
+    const all = window.__QUESTION_BANKS__;
+    if (all && all[id]) return all[id];
+    return window.__QUESTION_BANK__ || [];   /* 兼容：单题库构建产物 */
+  }
+
+  /* 暴露给 bank-selector.js（M4）与调试 */
+  window.__BANK_API__ = {
+    list: bankList,
+    current: getCurrentBank,
+    set: setCurrentBank,
+    switchTo: function (id) {
+      if (id === getCurrentBank()) return false;
+      setCurrentBank(id);
+      window.location.reload();     /* 刷新页面重载题库与进度，等价于 SPA 内切库 */
+      return true;
+    }
+  };
 
   /** 把题库字段（静态版命名）转成接口字段（服务端版命名） */
   function toApi(q) {
@@ -444,6 +527,7 @@
 
   /* ---------------- 拦截 fetch ---------------- */
   migrateLegacyProgress();
+  migrateStorageIfNeeded();
 
   const realFetch = window.fetch ? window.fetch.bind(window) : null;
   window.fetch = function (input, init) {

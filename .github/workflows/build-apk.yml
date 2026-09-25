@@ -71,13 +71,38 @@ jobs:
         run: |
           test -f android/app/src/main/assets/public/data-offline.js
           grep -q "window.__QUESTION_BANK__" android/app/src/main/assets/public/data-offline.js
-          COUNT=$(grep -o '"type":"' android/app/src/main/assets/public/data-offline.js | wc -l)
-          SINGLE=$(grep -o '"type":"单选"' android/app/src/main/assets/public/data-offline.js | wc -l)
-          MULTI=$(grep -o '"type":"多选"' android/app/src/main/assets/public/data-offline.js | wc -l)
-          echo "题库条数：$COUNT（单选 $SINGLE / 多选 $MULTI）"
-          test "$COUNT" -ge 300 || { echo "❌ 题库题目数少于 300，疑似生成失败"; exit 1; }
-          test "$SINGLE" -eq 190 || { echo "❌ 单选题数应为 190，实际 $SINGLE"; exit 1; }
-          test "$MULTI" -eq 110 || { echo "❌ 多选题数应为 110，实际 $MULTI"; exit 1; }
+          grep -q "window.__QUESTION_BANKS__" android/app/src/main/assets/public/data-offline.js \
+            || { echo "❌ 缺少多题库数据 window.__QUESTION_BANKS__"; exit 1; }
+          grep -q "window.__BANK_INDEX__" android/app/src/main/assets/public/data-offline.js \
+            || { echo "❌ 缺少题库清单 window.__BANK_INDEX__"; exit 1; }
+          # 断言改为**按题库 meta.json 动态校验**（M3）：先找到数据源目录
+          DATA_DIR=data
+          [ -f "$DATA_DIR/index.json" ] || DATA_DIR=../tools/data
+          if [ ! -f "$DATA_DIR/index.json" ]; then
+            echo "::error::找不到 $DATA_DIR/index.json（题库清单）"; exit 1
+          fi
+          DEFAULT_BANK=$(python3 -c "import json;print(json.load(open('$DATA_DIR/index.json'))['default'])")
+          META="$DATA_DIR/banks/$DEFAULT_BANK.meta.json"
+          [ -f "$META" ] || { echo "::error::缺少题库 meta：$META"; exit 1; }
+          TOTAL=$(python3 -c "import json;print(json.load(open('$META'))['total'])")
+          SINGLE=$(python3 -c "import json;print(json.load(open('$META'))['single'])")
+          MULTI=$(python3 -c "import json;print(json.load(open('$META'))['multiple'])")
+          echo "默认题库：$DEFAULT_BANK（期望 $TOTAL 题 = 单选 $SINGLE + 多选 $MULTI）"
+          # 产物里的 __BANK_STATS__ 必须与 meta 一致
+          grep -q "window.__BANK_STATS__ = {total: $TOTAL, single: $SINGLE, multi: $MULTI}" \
+            android/app/src/main/assets/public/data-offline.js \
+            || { echo "❌ __BANK_STATS__ 与 meta.json 不一致（期望 total:$TOTAL single:$SINGLE multi:$MULTI）"; \
+                 grep -o "window.__BANK_STATS__ = {[^}]*}" android/app/src/main/assets/public/data-offline.js; exit 1; }
+          # 内置题库里必须真的有题目（防止空数组混过）
+          EMBEDDED=$(python3 -c "
+          import io,re,json
+          src=io.open('android/app/src/main/assets/public/data-offline.js',encoding='utf-8').read()
+          m=re.search(r'window\.__QUESTION_BANKS__ = (\{.*?\});\n',src,re.S)
+          banks=json.loads(m.group(1)) if m else {}
+          print(sum(len(v) for v in banks.values()))
+          ")
+          echo "内置题库总题数：$EMBEDDED"
+          test "$EMBEDDED" -ge "$TOTAL" || { echo "❌ 内置题数少于 $TOTAL，疑似生成失败"; exit 1; }
           grep -q '"explanation":' android/app/src/main/assets/public/data-offline.js || { echo "❌ 缺少解析字段"; exit 1; }
           grep -q '"law":' android/app/src/main/assets/public/data-offline.js || { echo "❌ 缺少法条字段"; exit 1; }
           diff android/app/src/main/assets/public/index.html www/index.html >/dev/null || { echo "❌ index.html 与 www 不一致，需重新 cap sync"; exit 1; }
@@ -167,7 +192,23 @@ jobs:
           BADGING=$("$BT/aapt2" dump badging "$APK")
           echo "$BADGING" | head -5
           echo "$BADGING" | grep -q "package: name='com.drugquiz.sc2'" || { echo "::error::包名不对"; exit 1; }
-          echo "$BADGING" | grep -q "application-label:'药品法规刷题'" || { echo "::error::应用名不对"; exit 1; }
+          # 应用名断言：**动态读 capacitor.config.ts 的 appName**，不写死。
+          # 写死的话，用打包工具改名后第一次出包必红（审核发现的 A-3）。
+          EXPECTED_NAME=$(python3 - <<'PY'
+          import io, re, sys
+          text = io.open("capacitor.config.ts", encoding="utf-8").read()
+          m = re.search(r"appName\s*:\s*['\"]([^'\"]+)['\"]", text)
+          # 直接写 UTF-8 字节（绕开 Windows 控制台默认的 GBK 编码）
+          sys.stdout.buffer.write((m.group(1) if m else "").encode("utf-8"))
+          PY
+          )
+          if [ -z "$EXPECTED_NAME" ]; then
+            echo "::error::未能从 capacitor.config.ts 读到 appName（改名流程异常）"
+            exit 1
+          fi
+          echo "期望应用名（读自 capacitor.config.ts）：$EXPECTED_NAME"
+          echo "$BADGING" | grep -q "application-label:'${EXPECTED_NAME}'" \
+            || { echo "::error::应用名不对（期望 ${EXPECTED_NAME}）"; exit 1; }
           echo "$BADGING" | grep -q "application-icon-480" || { echo "::error::缺少图标"; exit 1; }
           echo "--- 签名证书（应与 android-signing/说明.md 记录一致） ---"
           "$BT/apksigner" verify --print-certs "$APK" | grep -i "SHA-256" | head -2
