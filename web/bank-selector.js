@@ -47,10 +47,12 @@
     ".bank-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;",
     "  padding:14px 12px;border:1px solid #e0e0e0;border-radius:12px;background:#fff;",
     "  margin-bottom:10px;font-size:1em;}",
-    ".bank-item.active{border-color:#1a5fb4;background:#eef4fd;}",
+    /* 品牌色走 CSS 变量（由 build_www.py 按变体注入 theme-variant.css）：
+       写死 #1a5fb4 时，深青主题的药品法规版会在这里露出一块蓝，与顶栏/按钮不一致。 */
+    ".bank-item.active{border-color:var(--primary,#1a5fb4);background:var(--primary-tint,#eef4fd);}",
     ".bank-item .b-name{font-weight:600;}",
     ".bank-item .b-count{color:#5b6b73;font-size:.9em;}",
-    ".bank-item .b-check{margin-left:auto;color:#1a5fb4;font-weight:700;}",
+    ".bank-item .b-check{margin-left:auto;color:var(--primary,#1a5fb4);font-weight:700;}",
     ".bank-item .b-license{display:block;color:#8a949a;font-size:.8em;margin-top:2px;}"
   ].join("");
   document.head.appendChild(style);

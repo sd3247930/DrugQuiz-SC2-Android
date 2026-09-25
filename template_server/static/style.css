@@ -419,11 +419,13 @@ body.theme-dark .tabbar { background: var(--surface); border-color: var(--border
   --text: #0f172a;               /* Slate 900 正文（WCAG AAA） */
   --text-2: #475569;             /* Slate 600 次要信息 */
   --text-3: #64748b;             /* Slate 500 标签 */
-  /* 品牌主色（深青） */
-  --primary: #0f5b78;
-  --primary-strong: #0b4459;
-  --primary-soft: #e0f2fe;       /* 选中底色 */
-  --primary-tint: #f0f9ff;       /* 选中卡片底色 */
+  /* 品牌主色：**取值由变体注入的 theme-variant.css 决定**（--color-primary 等四个变量，
+     安卓版由 build_www.py 按该 APK 默认题库的 meta.theme 生成）。
+     括号里是兜底值：服务端版自身 / 没有变体注入时行为与历史完全一致（深青）。 */
+  --primary: var(--color-primary, #0f5b78);
+  --primary-strong: var(--color-primary-dark, #0b4459);
+  --primary-soft: var(--color-primary-soft, #e0f2fe);   /* 选中底色 */
+  --primary-tint: var(--color-primary-tint, #f0f9ff);   /* 选中卡片底色 */
   /* 状态色 */
   --success: #10b981;            /* 合规/答对 */
   --success-soft: #f0fdf4;
@@ -462,10 +464,11 @@ body.theme-dark {
   --text: #e6eef7;
   --text-2: #b9c8da;
   --text-3: #93a4b8;
-  --primary: #7cc4e8;            /* 深色底上的浅青 */
-  --primary-strong: #a8dbf5;
-  --primary-soft: #10394d;
-  --primary-tint: #0e2b3b;
+  /* 深色底上的浅色主色：同样来自 meta.theme.darkMode（见 theme-variant.css） */
+  --primary: var(--color-primary, #7cc4e8);
+  --primary-strong: var(--color-primary-dark, #a8dbf5);
+  --primary-soft: var(--color-primary-soft, #10394d);
+  --primary-tint: var(--color-primary-tint, #0e2b3b);
   --success: #4ade80;
   --success-soft: #102a1c;
   --danger: #fca5a5;
@@ -480,12 +483,12 @@ body.theme-dark {
 /* 1) 画布：设计稿要求 Level 0 为纯色平面（不使用纹理），保留极轻的品牌光晕 */
 body {
   background-color: var(--bg);
-  background-image: radial-gradient(circle at 50% 0%, rgba(15, 91, 120, 0.05), transparent 38%);
+  background-image: radial-gradient(circle at 50% 0%, rgba(var(--color-primary-rgb, 15, 91, 120), 0.05), transparent 38%);
   background-repeat: no-repeat;
   color: var(--text);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
 }
-body.theme-dark { background-image: radial-gradient(circle at 50% 0%, rgba(124, 196, 232, 0.06), transparent 40%); }
+body.theme-dark { background-image: radial-gradient(circle at 50% 0%, rgba(var(--color-primary-rgb, 124, 196, 232), 0.06), transparent 40%); }
 
 /* 2) 主卡片与表单控件 */
 .app { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow); }

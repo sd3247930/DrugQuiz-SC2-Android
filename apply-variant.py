@@ -52,6 +52,7 @@ CAP_CONFIG = os.path.join(ROOT, "capacitor.config.ts")
 BUILD_GRADLE = os.path.join(ROOT, "android", "app", "build.gradle")
 ANDROID_RES = os.path.join(ROOT, "android", "app", "src", "main", "res")
 STRINGS_XML = os.path.join(ANDROID_RES, "values", "strings.xml")
+COLORS_XML = os.path.join(ANDROID_RES, "values", "colors.xml")
 
 
 def read(path):
@@ -72,7 +73,7 @@ def sub_once(text, pattern, repl, label):
     return new
 
 
-def apply_config(app_id, app_name, version_code, version_name):
+def apply_config(app_id, app_name, version_code, version_name, primary="", primary_dark=""):
     changed = []
 
     text = read(CAP_CONFIG)
@@ -112,10 +113,27 @@ def apply_config(app_id, app_name, version_code, version_name):
         write(STRINGS_XML, text)
         changed.append("android/app/src/main/res/values/strings.xml")
 
+    # 原生侧品牌色（H-1）：colorPrimary / colorAccent 影响系统控件与 Android 14 及以下的状态栏，
+    # 必须与网页 UI 的主色一致（网页那边由 build_www.py 注入 theme-variant.css）。
+    if primary or primary_dark:
+        if not os.path.exists(COLORS_XML):
+            sys.exit("❌ 找不到 %s" % COLORS_XML)
+        text = read(COLORS_XML)
+        if primary:
+            for key in ("colorPrimary", "colorAccent"):
+                text = sub_once(text, r'(<color name="%s">)[^<]*(</color>)' % key,
+                                r'\g<1>%s\g<2>' % primary, COLORS_XML)
+        if primary_dark:
+            text = sub_once(text, r'(<color name="colorPrimaryDark">)[^<]*(</color>)',
+                            r'\g<1>%s\g<2>' % primary_dark, COLORS_XML)
+        write(COLORS_XML, text)
+        changed.append("android/app/src/main/res/values/colors.xml")
+
     # 回读断言：写进去的值必须真的在文件里
     cap = read(CAP_CONFIG)
     gradle = read(BUILD_GRADLE)
     strings = read(STRINGS_XML) if os.path.exists(STRINGS_XML) else ""
+    colors = read(COLORS_XML) if os.path.exists(COLORS_XML) else ""
     checks = []
     if app_id:
         checks += [
@@ -132,6 +150,14 @@ def apply_config(app_id, app_name, version_code, version_name):
         checks.append(('versionCode', re.search(r'versionCode\s+%s\b' % version_code, gradle) is not None))
     if version_name:
         checks.append(('versionName', 'versionName "%s"' % version_name in gradle))
+    if primary:
+        checks += [
+            ('colors colorPrimary', '<color name="colorPrimary">%s</color>' % primary in colors),
+            ('colors colorAccent', '<color name="colorAccent">%s</color>' % primary in colors),
+        ]
+    if primary_dark:
+        checks.append(('colors colorPrimaryDark',
+                       '<color name="colorPrimaryDark">%s</color>' % primary_dark in colors))
     bad = [name for name, ok in checks if not ok]
     if bad:
         sys.exit("❌ 写入后回读校验失败：%s" % "、".join(bad))
@@ -169,15 +195,20 @@ def main():
     ap.add_argument("--app-name", default="", help="桌面显示的应用名")
     ap.add_argument("--version-code", default="", help="versionCode，整数")
     ap.add_argument("--version-name", default="", help="versionName，如 1.0.0")
+    ap.add_argument("--primary", default="", help="App 内 UI 主色（写入 colors.xml 的 colorPrimary/colorAccent）")
+    ap.add_argument("--primary-dark", default="", help="主色深色档（写入 colorPrimaryDark）")
     ap.add_argument("--branding", default="", help="图标资源目录（相对安卓版根目录）")
     ap.add_argument("--res-dir", default="", help="目标 res 目录（默认 android/app/src/main/res，调试用可覆盖）")
     args = ap.parse_args()
 
-    if not any([args.app_id, args.app_name, args.version_code, args.version_name, args.branding]):
+    if not any([args.app_id, args.app_name, args.version_code, args.version_name,
+                args.primary, args.primary_dark, args.branding]):
         ap.error("至少要给一个参数")
 
-    if any([args.app_id, args.app_name, args.version_code, args.version_name]):
-        apply_config(args.app_id, args.app_name, args.version_code, args.version_name)
+    if any([args.app_id, args.app_name, args.version_code, args.version_name,
+            args.primary, args.primary_dark]):
+        apply_config(args.app_id, args.app_name, args.version_code, args.version_name,
+                     args.primary, args.primary_dark)
     if args.branding:
         apply_branding(args.branding, args.res_dir)
     return 0

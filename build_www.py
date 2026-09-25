@@ -34,6 +34,8 @@ import os
 import re
 import shutil
 import sys
+import json
+import argparse
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 WWW = os.path.join(BASE, "www")
@@ -44,9 +46,31 @@ PAGES = ("index.html", "practice.html", "answer_card.html", "settings.html")
 STATIC_COPIES = ("style.css", "script.js", "selection.js", "law.js", "lawtip.js")
 APP_SCRIPTS = ("local-api.js", "page-init.js", "bank-selector.js")
 GENERATED_EXTRA = ("data-offline.js",)   # 由 generate_offline.py 产出
+THEME_CSS = "theme-variant.css"          # 由本脚本按变体生成（品牌色注入）
 SKIP_STATIC = {"manifest.json", "sw.js"}   # PWA 专用，App 内不需要
 SKIP_STATIC_DIRS = {"icons"}               # PWA 图标目录同样跳过
 BINARY_EXT = (".png", ".woff2", ".woff", ".jpg", ".jpeg", ".ico")
+
+# 题库数据源（与 generate_offline.py 同一套优先级）：开发时用项目数据，独立克隆/CI 用仓库快照
+DATA_ROOT_CANDIDATES = [
+    os.path.join(BASE, "data"),
+    os.path.join(os.path.dirname(BASE), "tools", "data"),
+]
+
+# 兜底主题 = 药品法规版（深青）。meta.theme 缺失时用它，行为与改造前一致。
+DEFAULT_THEME = {
+    "themeColor": "#0f5b78",
+    "themeColorDark": "#0b4459",
+    "themeColorSoft": "#e0f2fe",
+    "themeColorTint": "#f0f9ff",
+    "onThemeColor": "#ffffff",
+    "darkMode": {
+        "themeColor": "#7cc4e8",
+        "themeColorDark": "#a8dbf5",
+        "themeColorSoft": "#10394d",
+        "themeColorTint": "#0e2b3b",
+    },
+}
 
 # 服务端版目录按优先级查找：
 #   1) ../服务端版              —— 开发时用项目里的服务端版（保证与之同步）
@@ -77,6 +101,88 @@ def write(path, text):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with io.open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
+
+
+def find_data_root():
+    """找题库数据源目录（含 index.json）；找不到返回空串"""
+    for path in DATA_ROOT_CANDIDATES:
+        if os.path.isfile(os.path.join(path, "index.json")):
+            return path
+    return ""
+
+
+def load_theme(bank_id):
+    """按变体（该 APK 的默认题库）读 meta.theme。
+
+    题库主题色写在 meta.json 里，构建时注入成 CSS 变量——这样第三个题库只要加 meta 字段，
+    不用改任何代码/样式（H-1 方案 B）。
+    """
+    root = find_data_root()
+    bank = bank_id or os.environ.get("BANK_ID", "")
+    if not root:
+        print("⚠️  找不到题库数据源（index.json），主题用兜底值（深青）")
+        return bank, dict(DEFAULT_THEME)
+    index = json.loads(read(os.path.join(root, "index.json")))
+    bank = bank or index.get("default", "")
+    meta_path = os.path.join(root, "banks", "%s.meta.json" % bank)
+    if bank and os.path.isfile(meta_path):
+        theme = json.loads(read(meta_path)).get("theme")
+        if theme:
+            merged = dict(DEFAULT_THEME)
+            merged.update(theme)
+            merged["darkMode"] = dict(DEFAULT_THEME["darkMode"], **(theme.get("darkMode") or {}))
+            return bank, merged
+        print("⚠️  %s 的 meta.json 没有 theme 字段，主题用兜底值（深青）" % bank)
+    else:
+        print("⚠️  找不到默认题库 meta：%s，主题用兜底值（深青）" % meta_path)
+    return bank, dict(DEFAULT_THEME)
+
+
+def build_theme_css(theme, bank):
+    """按变体主题生成 CSS 变量文件（加载在 style.css 之后，覆盖 :root 与深色模式两组 token）"""
+    dark = theme["darkMode"]
+    rgb = hex_to_rgb_triplet(theme["themeColor"])
+    dark_rgb = hex_to_rgb_triplet(dark["themeColor"])
+    lines = [
+        "/* 自动生成：变体品牌色（来源：%s 的 meta.theme）请勿手改，改 meta.json 后重跑 build_www.py */" % bank,
+        ":root {",
+        "  --color-primary: %s;" % theme["themeColor"],
+        "  --color-primary-dark: %s;" % theme["themeColorDark"],
+        "  --color-primary-soft: %s;" % theme["themeColorSoft"],
+        "  --color-primary-tint: %s;" % theme["themeColorTint"],
+        "  --color-on-primary: %s;" % theme["onThemeColor"],
+        "  --color-primary-rgb: %s;" % rgb,          # 给 rgba(var(--color-primary-rgb), .05) 这类渐变光晕用
+        "}",
+        "",
+        "/* 深色模式：暗底上必须用浅色主色，否则对比度不足（见 meta.theme.darkMode） */",
+        "body.theme-dark {",
+        "  --color-primary: %s;" % dark["themeColor"],
+        "  --color-primary-dark: %s;" % dark["themeColorDark"],
+        "  --color-primary-soft: %s;" % dark["themeColorSoft"],
+        "  --color-primary-tint: %s;" % dark["themeColorTint"],
+        "  --color-primary-rgb: %s;" % dark_rgb,
+        "}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def hex_to_rgb_triplet(value):
+    """#1a5fb4 → 26, 95, 180（CSS 里 rgba() 要用三元组）"""
+    text = value.strip().lstrip("#")
+    if len(text) == 3:
+        text = "".join(ch * 2 for ch in text)
+    return "%d, %d, %d" % (int(text[0:2], 16), int(text[2:4], 16), int(text[4:6], 16))
+
+
+def apply_theme(html, theme):
+    """把变体样式表挂到 style.css 之后，并把 <meta name="theme-color"> 改成品牌色"""
+    link = '<link rel="stylesheet" href="style.css">'
+    if link in html and THEME_CSS not in html:
+        html = html.replace(link, link + '\n<link rel="stylesheet" href="%s">' % THEME_CSS, 1)
+    html = re.sub(r'<meta name="theme-color" content="[^"]*">',
+                  '<meta name="theme-color" content="%s">' % theme["themeColor"], html, count=1)
+    return html
 
 
 def convert_jinja(html, active):
@@ -188,11 +294,20 @@ def check_no_jinja(html, name):
         sys.exit(1)
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="从服务端版生成 Android 网页资源")
+    ap.add_argument("--bank", default=os.environ.get("BANK_ID", ""),
+                    help="该 APK 的默认题库 id（决定注入的品牌主色）；缺省用 index.json 的 default")
+    args = ap.parse_args(argv)
+
     server = find_server_dir()
     tpl_dir = os.path.join(server, "templates")
     static_dir = os.path.join(server, "static")
     base = read(os.path.join(tpl_dir, "base.html"))
+
+    # 变体品牌色（H-1 方案 B）：按默认题库的 meta.theme 注入 theme-variant.css
+    theme_bank, theme = load_theme(args.bank)
+    theme_css = build_theme_css(theme, theme_bank or "默认题库")
 
     pages = [
         ("index.html", "index.html", "home", adapt_index),
@@ -209,8 +324,14 @@ def main():
         if adapter:
             html = adapter(html)
         html = inject_scripts(html)
+        html = apply_theme(html, theme)
         check_no_jinja(html, out_name)
         write(os.path.join(WWW, out_name), html)
+
+    # 变体主题样式表（必须排在 style.css 之后加载才能覆盖 token）
+    write(os.path.join(WWW, THEME_CSS), theme_css)
+    print("   变体主题：%s 主色 %s（深色模式 %s）→ %s"
+          % (theme_bank or "兜底", theme["themeColor"], theme["darkMode"]["themeColor"], THEME_CSS))
 
     # 样式、脚本、品牌 logo、自托管字体整份复制（App 与服务端共用同一份代码与资源）
     # 文本文件走 write()，二进制（png/woff2）用二进制复制；PWA 专用文件跳过
@@ -255,7 +376,7 @@ def main():
 
     # 清理孤儿文件：www 下不属于本次生成清单的文件一律删除
     # （保留 generate_offline.py 产出的 data-offline.js，避免版本切换后的残留被误打进包里）
-    managed = set(PAGES) | set(copied) | set(APP_SCRIPTS) | set(GENERATED_EXTRA)
+    managed = set(PAGES) | set(copied) | set(APP_SCRIPTS) | set(GENERATED_EXTRA) | {THEME_CSS}
     removed = []
     for name in os.listdir(WWW):
         path = os.path.join(WWW, name)

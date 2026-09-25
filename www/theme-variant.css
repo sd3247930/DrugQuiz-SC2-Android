@@ -1,0 +1,18 @@
+/* 自动生成：变体品牌色（来源：药品法规 的 meta.theme）请勿手改，改 meta.json 后重跑 build_www.py */
+:root {
+  --color-primary: #0f5b78;
+  --color-primary-dark: #0b4459;
+  --color-primary-soft: #e0f2fe;
+  --color-primary-tint: #f0f9ff;
+  --color-on-primary: #ffffff;
+  --color-primary-rgb: 15, 91, 120;
+}
+
+/* 深色模式：暗底上必须用浅色主色，否则对比度不足（见 meta.theme.darkMode） */
+body.theme-dark {
+  --color-primary: #7cc4e8;
+  --color-primary-dark: #a8dbf5;
+  --color-primary-soft: #10394d;
+  --color-primary-tint: #0e2b3b;
+  --color-primary-rgb: 124, 196, 232;
+}

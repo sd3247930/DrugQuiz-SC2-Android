@@ -13,5 +13,18 @@
   "hasLawCount": 0,
   "source": "ruankao-senior-architecture-designer（2016–2025 综合知识 13 份试卷）",
   "license": "社区开源仓库整理，自用可以，对外分发谨慎",
-  "description": "软考·系统架构设计师 综合知识 历年真题"
+  "description": "软考·系统架构设计师 综合知识 历年真题",
+  "theme": {
+    "themeColor": "#1a5fb4",
+    "themeColorDark": "#134a8a",
+    "themeColorSoft": "#dce9fb",
+    "themeColorTint": "#f0f6ff",
+    "onThemeColor": "#ffffff",
+    "darkMode": {
+      "themeColor": "#8ab8f2",
+      "themeColorDark": "#a8d4f7",
+      "themeColorSoft": "#123a5c",
+      "themeColorTint": "#0f2a44"
+    }
+  }
 }

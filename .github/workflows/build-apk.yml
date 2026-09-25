@@ -40,6 +40,8 @@ jobs:
             expect_banks: "药品法规,软考-架构师"
             branding: ""
             icon_color: "#0F5B78"
+            primary: "#0F5B78"
+            primary_dark: "#0B4459"
           - variant: ruankao
             apk: DrugQuiz-RuanKao.apk
             app_id: com.drugquiz.ruankao
@@ -51,6 +53,8 @@ jobs:
             expect_banks: "软考-架构师"
             branding: android/branding/ruankao
             icon_color: "#1A5FB4"
+            primary: "#1A5FB4"
+            primary_dark: "#134A8A"
 
     steps:
       - name: Checkout
@@ -99,13 +103,15 @@ jobs:
             --app-id "${{ matrix.app_id }}" \
             --app-name "${{ matrix.app_name }}" \
             --version-code "${{ matrix.version_code }}" \
-            --version-name "${{ matrix.version_name }}"
+            --version-name "${{ matrix.version_name }}" \
+            --primary "${{ matrix.primary }}" \
+            --primary-dark "${{ matrix.primary_dark }}"
 
       # 生成离线题库 + 拆分网页资源（题库范围由变体决定）
       - name: Generate offline data & web assets
         run: |
           python generate_offline.py --bank "${{ matrix.bank }}" --include "${{ matrix.banks }}"
-          python build_www.py
+          python build_www.py --bank "${{ matrix.bank }}"
           ls -lh www/
 
       - name: Capacitor sync
@@ -120,6 +126,8 @@ jobs:
           python apply-variant.py \
             --app-id "${{ matrix.app_id }}" \
             --app-name "${{ matrix.app_name }}" \
+            --primary "${{ matrix.primary }}" \
+            --primary-dark "${{ matrix.primary_dark }}" \
             --branding "${{ matrix.branding }}"
 
       # 关键校验：防止题库丢失/资源未同步/变体参数没生效导致装出来的 App 是空壳或装错包
@@ -183,7 +191,16 @@ jobs:
             || { echo "❌ answer_card.html 与 www 不一致，需重新 cap sync"; exit 1; }
           diff android/app/src/main/assets/public/local-api.js www/local-api.js >/dev/null \
             || { echo "❌ local-api.js 与 www 不一致，需重新 cap sync"; exit 1; }
-          echo "✅ 离线题库与网页资源完整（4 页面 + 本地接口垫片）"
+          # 变体主题：theme-variant.css 必须已生成、已进包，且主色与本变体一致（H-1）
+          test -f android/app/src/main/assets/public/theme-variant.css \
+            || { echo "❌ 缺少 theme-variant.css（变体主题未注入）"; exit 1; }
+          grep -qi -- "--color-primary: ${{ matrix.primary }}" \
+            android/app/src/main/assets/public/theme-variant.css \
+            || { echo "❌ theme-variant.css 的主色不是 ${{ matrix.primary }}"; \
+                 cat android/app/src/main/assets/public/theme-variant.css; exit 1; }
+          grep -q 'theme-variant.css' android/app/src/main/assets/public/index.html \
+            || { echo "❌ index.html 没有引入 theme-variant.css"; exit 1; }
+          echo "✅ 离线题库与网页资源完整（4 页面 + 本地接口垫片 + 变体主题）"
 
       # 变体参数落地的证据：strings.xml 里的应用名/包名必须是本变体声明的值
       - name: Verify variant applied to android resources
@@ -197,7 +214,12 @@ jobs:
             || { echo "::error::build.gradle 的 applicationId 不对"; exit 1; }
           grep -q 'versionName "${{ matrix.version_name }}"' android/app/build.gradle \
             || { echo "::error::build.gradle 的 versionName 不对"; exit 1; }
-          echo "✅ 变体 ${{ matrix.variant }}：应用名 ${{ matrix.app_name }} ｜ 包名 ${{ matrix.app_id }} ｜ 版本 ${{ matrix.version_name }}"
+          COLORS=android/app/src/main/res/values/colors.xml
+          grep -q "<color name=\"colorPrimary\">${{ matrix.primary }}</color>" "$COLORS" \
+            || { echo "::error::colors.xml 的 colorPrimary 不是 ${{ matrix.primary }}（原生 UI 主色没跟上变体）"; cat "$COLORS"; exit 1; }
+          grep -q "<color name=\"colorPrimaryDark\">${{ matrix.primary_dark }}</color>" "$COLORS" \
+            || { echo "::error::colors.xml 的 colorPrimaryDark 不是 ${{ matrix.primary_dark }}"; cat "$COLORS"; exit 1; }
+          echo "✅ 变体 ${{ matrix.variant }}：应用名 ${{ matrix.app_name }} ｜ 包名 ${{ matrix.app_id }} ｜ 版本 ${{ matrix.version_name }} ｜ UI 主色 ${{ matrix.primary }}"
 
       # 防回归：Capacitor 脚手架默认把自适应图标背景层写成 #FFFFFF，
       # 一旦被重置，Android 8+ 的桌面图标四边会重新出现一圈白边。

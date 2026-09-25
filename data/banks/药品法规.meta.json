@@ -13,5 +13,18 @@
   "hasLawCount": 300,
   "source": "private/单选题 + private/多选题（网页导出 md，4 步流水线生成）",
   "license": "内部题库，含法规条文引用",
-  "description": "药品管理法规知识竞赛试题库（生产二部专用）"
+  "description": "药品管理法规知识竞赛试题库（生产二部专用）",
+  "theme": {
+    "themeColor": "#0f5b78",
+    "themeColorDark": "#0b4459",
+    "themeColorSoft": "#e0f2fe",
+    "themeColorTint": "#f0f9ff",
+    "onThemeColor": "#ffffff",
+    "darkMode": {
+      "themeColor": "#7cc4e8",
+      "themeColorDark": "#a8dbf5",
+      "themeColorSoft": "#10394d",
+      "themeColorTint": "#0e2b3b"
+    }
+  }
 }
