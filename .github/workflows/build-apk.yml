@@ -1,8 +1,16 @@
 name: Build DrugQuiz APK
 
 # 触发方式：手动触发（推荐）或推送到 main 分支
-# 打 v* tag（如 v1.5.3）时额外发布 Release，产物固定名 DrugQuiz-SC2.apk，
-# 供网页版永久直链：https://github.com/sd3247930/DrugQuiz-SC2-Android/releases/latest/download/DrugQuiz-SC2.apk
+#
+# 一次触发同时产出**两个**安装包（M6 方案甲）：
+#   DrugQuiz-SC2.apk      药品法规刷题 —— 内置全部题库，默认药品法规；网页永久直链用这个文件名：
+#                         https://github.com/sd3247930/DrugQuiz-SC2-Android/releases/latest/download/DrugQuiz-SC2.apk
+#   DrugQuiz-RuanKao.apk  软考架构师刷题 —— 只内置软考题库（937 题），独立包名 com.drugquiz.ruankao、独立图标
+#
+# 两个包由 matrix 驱动同一套步骤生成：题库 id、包名、应用名、版本号、图标目录、验收断言全部来自 matrix，
+# 不再有"某个包忘了改某处"的隐患。
+#
+# 打 v* tag（如 v1.6.0）时，两个包由独立的 release job 一起发布到 Release。
 on:
   workflow_dispatch:
   push:
@@ -16,6 +24,33 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      # 一个变体失败不影响另一个：两个包都要看到自己的结论
+      fail-fast: false
+      matrix:
+        include:
+          - variant: sc2
+            apk: DrugQuiz-SC2.apk
+            app_id: com.drugquiz.sc2
+            app_name: 药品法规刷题
+            version_code: "14"
+            version_name: 1.6.0
+            bank: 药品法规
+            banks: "药品法规,软考-架构师"
+            expect_banks: "药品法规,软考-架构师"
+            branding: ""
+            icon_color: "#0F5B78"
+          - variant: ruankao
+            apk: DrugQuiz-RuanKao.apk
+            app_id: com.drugquiz.ruankao
+            app_name: 软考架构师刷题
+            version_code: "1"
+            version_name: 1.0.0
+            bank: 软考-架构师
+            banks: "软考-架构师"
+            expect_banks: "软考-架构师"
+            branding: android/branding/ruankao
+            icon_color: "#1A5FB4"
 
     steps:
       - name: Checkout
@@ -56,17 +91,32 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # 生成离线题库 + 拆分网页资源
+      # 变体参数（必须在 cap sync 之前）：cap sync 会用 capacitor.config.ts 的 appId/appName
+      # 重新生成 strings.xml，所以应用名要在这之前改好。
+      - name: Apply variant config
+        run: |
+          python apply-variant.py \
+            --app-id "${{ matrix.app_id }}" \
+            --app-name "${{ matrix.app_name }}" \
+            --version-code "${{ matrix.version_code }}" \
+            --version-name "${{ matrix.version_name }}"
+
+      # 生成离线题库 + 拆分网页资源（题库范围由变体决定）
       - name: Generate offline data & web assets
         run: |
-          python generate_offline.py
+          python generate_offline.py --bank "${{ matrix.bank }}" --include "${{ matrix.banks }}"
           python build_www.py
           ls -lh www/
 
       - name: Capacitor sync
         run: npx cap sync android
 
-      # 关键校验：防止题库丢失/资源未同步导致装出来的 App 是空壳
+      # 图标资源（必须在 cap sync 之后覆盖，避免被脚手架文件顶掉）
+      - name: Apply variant icons
+        if: matrix.branding != ''
+        run: python apply-variant.py --branding "${{ matrix.branding }}"
+
+      # 关键校验：防止题库丢失/资源未同步/变体参数没生效导致装出来的 App 是空壳或装错包
       - name: Verify bundled question bank
         run: |
           test -f android/app/src/main/assets/public/data-offline.js
@@ -75,36 +125,48 @@ jobs:
             || { echo "❌ 缺少多题库数据 window.__QUESTION_BANKS__"; exit 1; }
           grep -q "window.__BANK_INDEX__" android/app/src/main/assets/public/data-offline.js \
             || { echo "❌ 缺少题库清单 window.__BANK_INDEX__"; exit 1; }
-          # 断言改为**按题库 meta.json 动态校验**（M3）：先找到数据源目录
+          # 断言按**变体指定的题库 + 题库 meta.json** 动态校验（M3）
           DATA_DIR=data
           [ -f "$DATA_DIR/index.json" ] || DATA_DIR=../tools/data
           if [ ! -f "$DATA_DIR/index.json" ]; then
             echo "::error::找不到 $DATA_DIR/index.json（题库清单）"; exit 1
           fi
-          DEFAULT_BANK=$(python3 -c "import json;print(json.load(open('$DATA_DIR/index.json'))['default'])")
+          DEFAULT_BANK="${{ matrix.bank }}"
           META="$DATA_DIR/banks/$DEFAULT_BANK.meta.json"
           [ -f "$META" ] || { echo "::error::缺少题库 meta：$META"; exit 1; }
           TOTAL=$(python3 -c "import json;print(json.load(open('$META'))['total'])")
           SINGLE=$(python3 -c "import json;print(json.load(open('$META'))['single'])")
           MULTI=$(python3 -c "import json;print(json.load(open('$META'))['multiple'])")
-          echo "默认题库：$DEFAULT_BANK（期望 $TOTAL 题 = 单选 $SINGLE + 多选 $MULTI）"
+          echo "变体 ${{ matrix.variant }} ｜ 默认题库：$DEFAULT_BANK（期望 $TOTAL 题 = 单选 $SINGLE + 多选 $MULTI）"
           # 产物里的 __BANK_STATS__ 必须与 meta 一致
           grep -q "window.__BANK_STATS__ = {total: $TOTAL, single: $SINGLE, multi: $MULTI}" \
             android/app/src/main/assets/public/data-offline.js \
             || { echo "❌ __BANK_STATS__ 与 meta.json 不一致（期望 total:$TOTAL single:$SINGLE multi:$MULTI）"; \
                  grep -o "window.__BANK_STATS__ = {[^}]*}" android/app/src/main/assets/public/data-offline.js; exit 1; }
+          # 内置**哪些**题库必须与变体声明一致（药品法规版=两个都带；软考版=只带软考）
+          EXPECT_BANKS="${{ matrix.expect_banks }}"
+          ACTUAL_BANKS=$(python3 -c "
+          import io,re,json
+          src=io.open('android/app/src/main/assets/public/data-offline.js',encoding='utf-8').read()
+          m=re.search(r'window\.__QUESTION_BANKS__ = (\{.*?\});\n',src,re.S)
+          banks=json.loads(m.group(1)) if m else {}
+          print(','.join(sorted(banks.keys())))
+          ")
+          EXPECT_SORTED=$(python3 -c "print(','.join(sorted('$EXPECT_BANKS'.split(','))))")
+          echo "内置题库：$ACTUAL_BANKS（期望 $EXPECT_SORTED）"
+          test "$ACTUAL_BANKS" = "$EXPECT_SORTED" \
+            || { echo "❌ 内置题库与变体声明不一致"; exit 1; }
           # 内置题库里必须真的有题目（防止空数组混过）
           EMBEDDED=$(python3 -c "
           import io,re,json
           src=io.open('android/app/src/main/assets/public/data-offline.js',encoding='utf-8').read()
           m=re.search(r'window\.__QUESTION_BANKS__ = (\{.*?\});\n',src,re.S)
           banks=json.loads(m.group(1)) if m else {}
-          print(sum(len(v) for v in banks.values()))
+          print(len(banks.get('$DEFAULT_BANK', [])))
           ")
-          echo "内置题库总题数：$EMBEDDED"
-          test "$EMBEDDED" -ge "$TOTAL" || { echo "❌ 内置题数少于 $TOTAL，疑似生成失败"; exit 1; }
+          echo "默认题库内置题数：$EMBEDDED"
+          test "$EMBEDDED" -eq "$TOTAL" || { echo "❌ 默认题库题数应为 $TOTAL，实际 $EMBEDDED"; exit 1; }
           grep -q '"explanation":' android/app/src/main/assets/public/data-offline.js || { echo "❌ 缺少解析字段"; exit 1; }
-          grep -q '"law":' android/app/src/main/assets/public/data-offline.js || { echo "❌ 缺少法条字段"; exit 1; }
           diff android/app/src/main/assets/public/index.html www/index.html >/dev/null || { echo "❌ index.html 与 www 不一致，需重新 cap sync"; exit 1; }
           # 页面结构：4 个页面 + 本地接口垫片 + 前端脚本（v1.1 起与服务端版对齐）
           for f in index.html practice.html answer_card.html settings.html \
@@ -117,6 +179,20 @@ jobs:
             || { echo "❌ local-api.js 与 www 不一致，需重新 cap sync"; exit 1; }
           echo "✅ 离线题库与网页资源完整（4 页面 + 本地接口垫片）"
 
+      # 变体参数落地的证据：strings.xml 里的应用名/包名必须是本变体声明的值
+      - name: Verify variant applied to android resources
+        run: |
+          STRINGS=android/app/src/main/res/values/strings.xml
+          grep -q ">${{ matrix.app_name }}<" "$STRINGS" \
+            || { echo "::error::strings.xml 的 app_name 不是 ${{ matrix.app_name }}（cap sync 前忘了改 capacitor.config.ts？）"; cat "$STRINGS"; exit 1; }
+          grep -q ">${{ matrix.app_id }}<" "$STRINGS" \
+            || { echo "::error::strings.xml 的 package_name 不是 ${{ matrix.app_id }}"; cat "$STRINGS"; exit 1; }
+          grep -q 'applicationId "${{ matrix.app_id }}"' android/app/build.gradle \
+            || { echo "::error::build.gradle 的 applicationId 不对"; exit 1; }
+          grep -q 'versionName "${{ matrix.version_name }}"' android/app/build.gradle \
+            || { echo "::error::build.gradle 的 versionName 不对"; exit 1; }
+          echo "✅ 变体 ${{ matrix.variant }}：应用名 ${{ matrix.app_name }} ｜ 包名 ${{ matrix.app_id }} ｜ 版本 ${{ matrix.version_name }}"
+
       # 防回归：Capacitor 脚手架默认把自适应图标背景层写成 #FFFFFF，
       # 一旦被重置，Android 8+ 的桌面图标四边会重新出现一圈白边。
       - name: Verify launcher icon has no white background
@@ -125,17 +201,17 @@ jobs:
           # 只取 <color> 的实际值，别把注释里提到的 #FFFFFF 也算进来
           COLOR=$(grep -o '<color name="ic_launcher_background">[^<]*' "$FILE" | sed 's/.*>//')
           NORM=$(echo "$COLOR" | tr 'a-z' 'A-Z' | tr -d ' ')
-          echo "自适应图标背景色：$COLOR"
+          EXPECT=$(echo "${{ matrix.icon_color }}" | tr 'a-z' 'A-Z' | tr -d ' ')
+          echo "自适应图标背景色：$COLOR（变体期望 $EXPECT）"
           case "$NORM" in
             '#FFFFFF'|'#FFF'|'') echo "❌ 背景层为空或为白色（Capacitor 脚手架默认 #FFFFFF，会让图标四周出现白边）"; exit 1 ;;
           esac
-          test "$NORM" = "#0F5B78" || { echo "❌ 背景层不是品牌色 #0F5B78（当前 $COLOR）"; exit 1; }
+          test "$NORM" = "$EXPECT" || { echo "❌ 背景层不是本变体的品牌色（当前 $COLOR，期望 $EXPECT）"; exit 1; }
           echo "✅ 自适应图标背景层为品牌色 $COLOR（无白色）"
 
       # 防回归（v1.5.4 起的新策略）：状态栏图标颜色**只有一个来源** = capacitor.config.ts 的 SystemBars 配置。
       #   1) styles.xml 不许再硬编码 windowLightStatusBar（历史遗留：主题写一套、插件又改一套，白天会打架）；
-      #   2) SystemBars.style 必须是 DARK（= 深色背景 → 浅色/白色图标），否则插件在白天会把图标改成深色，
-      #      压在深青顶栏 #0F5B78 上看不清；
+      #   2) SystemBars.style 必须是 DARK（= 深色背景 → 浅色/白色图标），否则插件在白天会把图标改成深色；
       #   3) 同步产物 assets/capacitor.config.json 必须带上这条配置（防止忘了 npx cap sync）。
       - name: Verify status bar icon policy (single source)
         run: |
@@ -158,6 +234,7 @@ jobs:
 
       # 固定签名密钥：来自 Secrets，解成 android/app/release.keystore。
       # 没有它的话每次 CI 都会自建 debug keystore，签名一变用户就装不上新版（必须先卸载，进度丢失）。
+      # 两个变体用同一把密钥：包名不同，安装时互不冲突；同一把签名让"同一台手机装两个包"没有歧义。
       - name: Write signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
@@ -191,7 +268,8 @@ jobs:
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
           BADGING=$("$BT/aapt2" dump badging "$APK")
           echo "$BADGING" | head -5
-          echo "$BADGING" | grep -q "package: name='com.drugquiz.sc2'" || { echo "::error::包名不对"; exit 1; }
+          echo "$BADGING" | grep -q "package: name='${{ matrix.app_id }}'" \
+            || { echo "::error::包名不对（期望 ${{ matrix.app_id }}）"; exit 1; }
           # 应用名断言：**动态读 capacitor.config.ts 的 appName**，不写死。
           # 写死的话，用打包工具改名后第一次出包必红（审核发现的 A-3）。
           EXPECTED_NAME=$(python3 - <<'PY'
@@ -209,6 +287,8 @@ jobs:
           echo "期望应用名（读自 capacitor.config.ts）：$EXPECTED_NAME"
           echo "$BADGING" | grep -q "application-label:'${EXPECTED_NAME}'" \
             || { echo "::error::应用名不对（期望 ${EXPECTED_NAME}）"; exit 1; }
+          echo "$BADGING" | grep -q "versionName='${{ matrix.version_name }}'" \
+            || { echo "::error::versionName 不对（期望 ${{ matrix.version_name }}）"; exit 1; }
           echo "$BADGING" | grep -q "application-icon-480" || { echo "::error::缺少图标"; exit 1; }
           echo "--- 签名证书（应与 android-signing/说明.md 记录一致） ---"
           "$BT/apksigner" verify --print-certs "$APK" | grep -i "SHA-256" | head -2
@@ -217,26 +297,39 @@ jobs:
         run: |
           set -e
           mkdir -p artifacts
-          cp android/app/build/outputs/apk/release/app-release.apk "artifacts/DrugQuiz-SC2.apk"
-          ls -lh "artifacts/DrugQuiz-SC2.apk"
-          sha256sum "artifacts/DrugQuiz-SC2.apk" > "artifacts/DrugQuiz-SC2.apk.sha256"
-          cat "artifacts/DrugQuiz-SC2.apk.sha256"
+          cp android/app/build/outputs/apk/release/app-release.apk "artifacts/${{ matrix.apk }}"
+          ls -lh "artifacts/${{ matrix.apk }}"
+          sha256sum "artifacts/${{ matrix.apk }}" > "artifacts/${{ matrix.apk }}.sha256"
+          cat "artifacts/${{ matrix.apk }}.sha256"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v5
         with:
-          name: DrugQuiz-APK
+          name: DrugQuiz-APK-${{ matrix.variant }}
           path: |
-            artifacts/DrugQuiz-SC2.apk
-            artifacts/DrugQuiz-SC2.apk.sha256
+            artifacts/${{ matrix.apk }}
+            artifacts/${{ matrix.apk }}.sha256
           if-no-files-found: error
 
-      # 打 tag 时发布 Release：固定名 DrugQuiz-SC2.apk 让网页直链永久有效
+  # 打 tag 时发布 Release：两个包一起上，固定名 DrugQuiz-SC2.apk 让网页直链永久有效
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download both APK artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: List artifacts
+        run: ls -lh artifacts/
       - name: Publish Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/DrugQuiz-SC2.apk
             artifacts/DrugQuiz-SC2.apk.sha256
+            artifacts/DrugQuiz-RuanKao.apk
+            artifacts/DrugQuiz-RuanKao.apk.sha256
           generate_release_notes: true

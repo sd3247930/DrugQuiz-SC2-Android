@@ -9,6 +9,8 @@ android/.gradle/
 android/build/
 android/app/build/
 android/local.properties
+# 一键装 SDK 脚本改写 local.properties 时留下的备份（不入库）
+android/local.properties.bak
 android/captures/
 
 # Capacitor 生成文件：构建必需，强制提交（覆盖 android/.gitignore 的忽略规则）

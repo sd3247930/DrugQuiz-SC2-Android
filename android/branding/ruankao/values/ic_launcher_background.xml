@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  软考版自适应图标的背景层（Android 8+ 桌面图标）。
+  必须是满幅不透明色：Capacitor 脚手架默认写 #FFFFFF，会在圆形/方形遮罩下露出一圈白边。
+  软考版品牌色 #1A5FB4（深蓝），与药品法规版的深青 #0F5B78 区分。
+-->
+<resources>
+    <color name="ic_launcher_background">#1A5FB4</color>
+</resources>
