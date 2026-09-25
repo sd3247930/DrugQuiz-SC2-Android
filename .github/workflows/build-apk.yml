@@ -111,10 +111,16 @@ jobs:
       - name: Capacitor sync
         run: npx cap sync android
 
-      # 图标资源（必须在 cap sync 之后覆盖，避免被脚手架文件顶掉）
-      - name: Apply variant icons
-        if: matrix.branding != ''
-        run: python apply-variant.py --branding "${{ matrix.branding }}"
+      # 图标资源 + strings.xml（必须在 cap sync 之后）
+      #   1) 图标：覆盖到 res 下，避免被脚手架文件顶掉；
+      #   2) strings.xml：**cap sync 不会按 capacitor.config.ts 重写它**（2026-09-25 CI 断言抓到），
+      #      桌面应用名与深链 scheme 都取自这里，所以再写一遍（脚本幂等，无 branding 的变体也照样跑）。
+      - name: Apply variant icons & strings
+        run: |
+          python apply-variant.py \
+            --app-id "${{ matrix.app_id }}" \
+            --app-name "${{ matrix.app_name }}" \
+            --branding "${{ matrix.branding }}"
 
       # 关键校验：防止题库丢失/资源未同步/变体参数没生效导致装出来的 App 是空壳或装错包
       - name: Verify bundled question bank
